@@ -1,236 +1,506 @@
+const API_ORIGIN_DEFAULT = '';
 
-const DIRECT_API = 'https://api.knight-manager.com';
-const $ = (s)=>document.querySelector(s);
-const state = {timer:null, data:{}};
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
 
-function esc(v){
-  return String(v ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-function fmt(n){
-  if(n===null||n===undefined||n==='') return '–';
-  if(typeof n==='number') return new Intl.NumberFormat('de-DE').format(n);
-  return esc(n);
-}
-function minText(m){
-  if(m===null||m===undefined) return '–';
-  if(m < 60) return `${Math.max(0,Math.floor(m))} Min`;
-  const h=Math.floor(m/60), r=Math.floor(m%60);
-  return `${h} Std ${r} Min`;
-}
-function setText(id, val){ const el=$(id); if(el) el.textContent = val ?? '–'; }
-function token(){ return localStorage.getItem('rm_token') || ''; }
-function proxyUrl(){ return (localStorage.getItem('rm_proxy') || '').replace(/\/+$/,''); }
-function autoRefresh(){ return localStorage.getItem('rm_auto') !== '0'; }
+const state = {
+  data: {
+    profile: null,
+    skills: null,
+    buffs: null,
+    blacksmith: null,
+    dragon: null,
+    outpost: null,
+    season: null,
+    shop: null,
+    live: null
+  },
+  busy: false
+};
 
-async function api(path){
-  const t=token();
-  const proxy=proxyUrl();
-  if(!t) throw new Error('Kein API-Token gespeichert.');
-  if(!proxy) throw new Error('Keine Cloudflare-Worker-Adresse gespeichert. Öffne Einstellungen und trage die workers.dev-Adresse ein.');
+function token() {
+  return (localStorage.getItem('rm_token') || '').trim();
+}
+
+function proxyUrl() {
+  return (localStorage.getItem('rm_proxy') || '').trim().replace(/\/+$/, '');
+}
+
+function setText(sel, value) {
+  const el = $(sel);
+  if (el) el.textContent = value ?? '–';
+}
+
+function fmt(n) {
+  if (n === null || n === undefined || n === '') return '–';
+  if (typeof n === 'number') return new Intl.NumberFormat('de-DE').format(n);
+  return String(n);
+}
+
+function safe(obj, ...paths) {
+  for (const p of paths) {
+    const parts = p.split('.');
+    let cur = obj;
+    let ok = true;
+
+    for (const part of parts) {
+      if (cur && Object.prototype.hasOwnProperty.call(cur, part)) {
+        cur = cur[part];
+      } else {
+        ok = false;
+        break;
+      }
+    }
+
+    if (ok && cur !== undefined && cur !== null) return cur;
+  }
+
+  return null;
+}
+
+async function api(path) {
+  const t = token();
+  const proxy = proxyUrl();
+
+  if (!t) {
+    throw new Error(`${path}: Kein API-Token gespeichert.`);
+  }
+
+  if (!proxy) {
+    throw new Error(`${path}: Keine Cloudflare-Worker-Adresse gespeichert.`);
+  }
+
   let r;
+
   try {
-    r=await fetch(proxy+path,{
-      headers:{'Authorization':`Bearer ${t}`,'Accept':'application/json'},
-      cache:'no-store'
+    r = await fetch(proxy + path, {
+      headers: {
+        'Authorization': `Bearer ${t}`,
+        'Accept': 'application/json'
+      },
+      cache: 'no-store'
     });
   } catch (e) {
-    throw new Error('Der Cloudflare Worker ist nicht erreichbar. Prüfe die Worker-Adresse und ob der Worker bereitgestellt wurde.');
+    throw new Error(`${path}: Worker nicht erreichbar (${e?.message || e})`);
   }
-  let body={}; try{body=await r.json()}catch{}
-  if(!r.ok){
-    const msg = body?.error || body?.message || `HTTP ${r.status}`;
-    if(r.status===401) throw new Error('Token ungültig oder nicht mehr gültig.');
-    if(r.status===403) throw new Error('Premium-API-Zugriff ist derzeit nicht aktiv.');
-    if(r.status===429) throw new Error('API-Limit erreicht. Bitte kurz warten.');
-    throw new Error(msg);
+
+  const raw = await r.text();
+
+  let body = {};
+
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    body = { raw };
   }
+
+  if (!r.ok) {
+    const detail =
+      body?.error ||
+      body?.message ||
+      body?.raw ||
+      'keine Antwort';
+
+    throw new Error(`${path}: HTTP ${r.status} – ${detail}`);
+  }
+
   return body;
 }
 
-async function loadAll(){
-  const app=$('#app');
-  app.classList.add('loading');
-  setText('#refreshState','Aktualisiere…');
-  try{
-    const endpoints = [
-      ['profile','/v1/me'],
-      ['skills','/v1/me/skills'],
-      ['buffs','/v1/me/buffs'],
-      ['blacksmith','/v1/me/blacksmith'],
-      ['dragon','/v1/me/dragon'],
-      ['outpost','/v1/me/outpost'],
-      ['season','/v1/game/season'],
-      ['shop','/v1/game/shop'],
-      ['live','/v1/game/live']
-    ];
-    const results = await Promise.allSettled(endpoints.map(x=>api(x[1])));
-    results.forEach((r,i)=>{ if(r.status==='fulfilled') state.data[endpoints[i][0]]=r.value; });
-    const rejected=results.filter(r=>r.status==='rejected');
-    if(!state.data.profile && rejected.length) throw rejected[0].reason;
-    render();
-    $('#errorBox').classList.add('hidden');
-    setText('#refreshState','Gerade aktualisiert');
-    localStorage.setItem('rm_last',String(Date.now()));
-  }catch(e){
-    $('#errorBox').textContent=e.message || String(e);
-    $('#errorBox').classList.remove('hidden');
-    setText('#refreshState','Fehler');
-  }finally{
-    app.classList.remove('loading');
+function renderProfile() {
+  const p = state.data.profile || {};
+
+  setText('#playerName',
+    safe(p, 'name', 'username', 'player.name', 'character.name') || '–'
+  );
+
+  setText('#level',
+    fmt(safe(p, 'level', 'player.level', 'character.level'))
+  );
+
+  setText('#gold',
+    fmt(safe(p, 'gold', 'coins', 'currency.gold'))
+  );
+
+  setText('#silver',
+    fmt(safe(p, 'silver', 'currency.silver'))
+  );
+
+  setText('#diamonds',
+    fmt(safe(p, 'diamonds', 'gems', 'currency.diamonds'))
+  );
+
+  setText('#xp',
+    fmt(safe(p, 'xp', 'experience', 'player.experience'))
+  );
+}
+
+function renderSkills() {
+  const data = state.data.skills;
+
+  const box = $('#skillsList');
+
+  if (!box) return;
+
+  box.innerHTML = '';
+
+  let list = [];
+
+  if (Array.isArray(data)) {
+    list = data;
+  } else if (Array.isArray(data?.skills)) {
+    list = data.skills;
+  }
+
+  if (!list.length) {
+    box.innerHTML = '<div class="muted">–</div>';
+    return;
+  }
+
+  for (const item of list) {
+    const div = document.createElement('div');
+    div.className = 'list-row';
+
+    const name =
+      item?.name ||
+      item?.title ||
+      item?.skill?.name ||
+      'Fähigkeit';
+
+    const level =
+      item?.level ??
+      item?.rank ??
+      item?.skill_level ??
+      '';
+
+    div.innerHTML = `
+      <span>${name}</span>
+      <strong>${level !== '' ? 'Stufe ' + level : ''}</strong>
+    `;
+
+    box.appendChild(div);
   }
 }
 
-function render(){
-  const p=state.data.profile||{};
-  setText('#knightName',p.name||'Mein Ritter');
-  setText('#level',fmt(p.level));
-  setText('#gold',fmt(p.currencies?.gold));
-  setText('#diamonds',fmt(p.currencies?.diamonds));
-  setText('#honor',fmt(p.ranking?.honor));
-  setText('#location',p.status?.location ? `📍 ${p.status.location}` : 'Standort unbekannt');
-  const online=$('#online');
-  online.textContent=p.status?.online?'ONLINE':'OFFLINE';
-  online.className=p.status?.online?'online':'online offline';
+function renderBuffs() {
+  const data = state.data.buffs;
+  const box = $('#buffsList');
 
-  setText('#huntLevel',fmt(p.hunting?.level));
-  setText('#huntKills',fmt(p.hunting?.kills));
-  setText('#huntPoints',fmt(p.hunting?.points));
-  setText('#cooking',fmt(p.crafting?.cooking));
-  setText('#engineering',fmt(p.crafting?.engineering));
-  setText('#adventure',fmt(p.progress?.adventure));
-  setText('#tower',fmt(p.progress?.tower));
-  setText('#sword',fmt(p.upgrades?.sword));
-  setText('#armor',fmt(p.upgrades?.armor));
-  setText('#shelter',fmt(p.upgrades?.shelter));
-  setText('#rank',fmt(p.ranking?.position));
+  if (!box) return;
 
-  const season=state.data.season||{};
-  setText('#season', season.season!==undefined ? `Saison ${season.season} · Tag ${season.day}` : 'Saison –');
+  box.innerHTML = '';
 
+  let list = [];
+
+  if (Array.isArray(data)) {
+    list = data;
+  } else if (Array.isArray(data?.buffs)) {
+    list = data.buffs;
+  }
+
+  if (!list.length) {
+    box.innerHTML = '<div class="muted">–</div>';
+    return;
+  }
+
+  for (const item of list) {
+    const div = document.createElement('div');
+    div.className = 'list-row';
+
+    const name =
+      item?.name ||
+      item?.title ||
+      item?.buff?.name ||
+      'Buff';
+
+    const value =
+      item?.value ??
+      item?.amount ??
+      item?.remaining ??
+      '';
+
+    div.innerHTML = `
+      <span>${name}</span>
+      <strong>${fmt(value)}</strong>
+    `;
+
+    box.appendChild(div);
+  }
+}
+
+function renderSimple() {
+  const bs = state.data.blacksmith || {};
+  const dragon = state.data.dragon || {};
+  const outpost = state.data.outpost || {};
+  const season = state.data.season || {};
+  const shop = state.data.shop || {};
+  const live = state.data.live || {};
+
+  setText('#blacksmithValue',
+    fmt(
+      safe(
+        bs,
+        'level',
+        'status',
+        'blacksmith.level'
+      )
+    )
+  );
+
+  setText('#dragonValue',
+    fmt(
+      safe(
+        dragon,
+        'level',
+        'status',
+        'dragon.level'
+      )
+    )
+  );
+
+  setText('#outpostValue',
+    fmt(
+      safe(
+        outpost,
+        'level',
+        'status',
+        'outpost.level'
+      )
+    )
+  );
+
+  setText('#seasonValue',
+    safe(
+      season,
+      'name',
+      'season.name',
+      'title',
+      'id'
+    ) || '–'
+  );
+
+  setText('#shopValue',
+    fmt(
+      safe(
+        shop,
+        'items.length',
+        'count'
+      )
+    )
+  );
+
+  setText('#liveValue',
+    safe(
+      live,
+      'status',
+      'name',
+      'event.name'
+    ) || '–'
+  );
+}
+
+function render() {
+  renderProfile();
   renderSkills();
   renderBuffs();
-  renderSmith();
-  renderDragon();
-  renderOutpost();
-  renderShop();
-  renderLive();
+  renderSimple();
+
+  const online = !!state.data.profile;
+
+  const pill = $('#statusPill');
+
+  if (pill) {
+    pill.textContent = online ? 'ONLINE' : 'OFFLINE';
+    pill.classList.toggle('online', online);
+    pill.classList.toggle('offline', !online);
+  }
 }
 
-function renderSkills(){
-  const d=state.data.skills||{};
-  const renderList=(items,el)=>{
-    el.innerHTML='';
-    if(!items?.length){el.innerHTML='<div class="small">Keine Daten</div>';return;}
-    items.sort((a,b)=>(b.active===true)-(a.active===true)).forEach(s=>{
-      el.insertAdjacentHTML('beforeend',
-        `<div class="skill ${s.active?'active':''}">
-          <div><div class="skillName">${esc(s.name)}</div><div class="skillMeta">Stufe ${fmt(s.level)}</div></div>
-          ${s.active?'<span class="badge">AKTIV</span>':''}
-        </div>`);
+async function loadAll() {
+  if (state.busy) return;
+
+  state.busy = true;
+
+  setText('#refreshState', 'Aktualisiere …');
+
+  const btn = $('#refreshBtn');
+
+  if (btn) btn.disabled = true;
+
+  const endpoints = [
+    ['profile', '/v1/me'],
+    ['skills', '/v1/me/skills'],
+    ['buffs', '/v1/me/buffs'],
+    ['blacksmith', '/v1/me/blacksmith'],
+    ['dragon', '/v1/me/dragon'],
+    ['outpost', '/v1/me/outpost'],
+    ['season', '/v1/game/season'],
+    ['shop', '/v1/game/shop'],
+    ['live', '/v1/game/live']
+  ];
+
+  try {
+    const results = await Promise.allSettled(
+      endpoints.map(x => api(x[1]))
+    );
+
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        state.data[endpoints[i][0]] = r.value;
+      }
     });
-  };
-  renderList(d.combat,$('#combatSkills'));
-  renderList(d.hunting,$('#huntSkills'));
-}
-function renderBuffs(){
-  const d=state.data.buffs||{};
-  const all=[...(d.buffs||[]).map(x=>({...x,debuff:false})),...(d.debuffs||[]).map(x=>({...x,debuff:true}))];
-  const el=$('#buffs');
-  el.innerHTML='';
-  if(!all.length){el.innerHTML='<div class="small">Keine aktiven Buffs oder Debuffs.</div>';return;}
-  all.forEach(b=>{
-    el.insertAdjacentHTML('beforeend',`<div class="buff">
-      <div class="buffTop"><span>${esc(b.name)}</span><span>${b.debuff?'⚠ ':''}${minText(b.remaining_minutes)}</span></div>
-      <div class="buffDesc">${esc(b.description||'')}${b.value!==undefined?` · Wert ${fmt(b.value)}`:''}</div>
-    </div>`);
-  });
-}
-function renderSmith(){
-  const d=state.data.blacksmith||{};
-  const el=$('#smith');
-  el.innerHTML='';
-  const map=[['sword','Schwert'],['armor','Rüstung'],['shelter','Unterkunft']];
-  map.forEach(([k,n])=>{
-    const x=d[k]; if(!x) return;
-    el.insertAdjacentHTML('beforeend',`<div class="row"><span>${n} · Stufe ${fmt(x.level)}</span><strong>${x.in_progress?'⏳ '+minText(x.timer?.remaining_minutes):'bereit'}</strong></div>`);
-  });
-  if(!el.innerHTML) el.innerHTML='<div class="small">Keine Daten</div>';
-}
-function renderDragon(){
-  const d=state.data.dragon||{};
-  const el=$('#dragon');
-  if(d.has_dragon===false){el.innerHTML='<div class="small">Noch kein Drache.</div>';return;}
-  if(d.level===undefined){el.innerHTML='<div class="small">Keine Daten</div>';return;}
-  const pct=Math.max(0,Math.min(100,Number(d.xp_percent||0)));
-  el.innerHTML=`<div class="row"><span>Status</span><strong>${esc(d.status)}</strong></div>
-    <div class="row"><span>Level</span><strong>${fmt(d.level)}</strong></div>
-    <div class="row"><span>Futter</span><strong>${fmt(d.food)}</strong></div>
-    <div class="small" style="margin-top:9px">XP ${fmt(d.xp)} / ${fmt(d.xp_needed)}</div>
-    <div class="progress"><i style="width:${pct}%"></i></div>`;
-}
-function renderOutpost(){
-  const d=state.data.outpost||{}, t=d.current_task;
-  const el=$('#outpost');
-  if(!t){el.innerHTML='<div class="small">Keine aktive Außenposten-Aufgabe.</div>';return;}
-  const pct=t.target?Math.min(100,(t.progress/t.target)*100):0;
-  el.innerHTML=`<div style="font-size:13px;font-weight:700">${esc(t.description)}</div>
-    <div class="small" style="margin-top:8px">${fmt(t.progress)} / ${fmt(t.target)}</div>
-    <div class="progress"><i style="width:${pct}%"></i></div>
-    <div class="small" style="margin-top:8px">Erledigt: ${fmt(d.tasks_completed)} · Belohnungen offen: ${fmt(d.pending_rewards)}</div>`;
-}
-function renderShop(){
-  const d=state.data.shop||{}, el=$('#shop');
-  el.innerHTML='';
-  (d.offers||[]).forEach(o=>{
-    el.insertAdjacentHTML('beforeend',`<div class="shopItem"><b>${esc(o.item_name)}</b><span>${fmt(o.price)} ${esc(o.currency)}</span></div>`);
-  });
-  if(!el.innerHTML) el.innerHTML='<div class="small">Keine Shopdaten.</div>';
-}
-function renderLive(){
-  const d=state.data.live||{}, el=$('#live');
-  const active=[];
-  if(d.tower?.phase) active.push(`Schwarzer Turm: ${d.tower.phase}`);
-  Object.entries(d.weekly_events||{}).forEach(([k,v])=>{if(v?.active)active.push(k.replaceAll('_',' '));});
-  Object.entries(d.events||{}).forEach(([k,v])=>{if(v===true||v?.active)active.push(k.replaceAll('_',' '));});
-  el.innerHTML=active.length?active.map(x=>`<span class="pill" style="margin:3px">${esc(x)}</span>`).join(''):'<div class="small">Keine besonderen Live-Ereignisse erkannt.</div>';
+
+    const report = results.map((r, i) =>
+      r.status === 'fulfilled'
+        ? `${endpoints[i][1]}: OK`
+        : `${endpoints[i][1]}: ${r.reason?.message || r.reason}`
+    ).join('\n');
+
+    const rejected = results.filter(
+      r => r.status === 'rejected'
+    );
+
+    if (!state.data.profile && rejected.length) {
+      alert(
+        'RitterManager API-Diagnose:\n\n' + report
+      );
+
+      throw rejected[0].reason;
+    }
+
+    render();
+
+    if (rejected.length) {
+      const errorBox = $('#errorBox');
+
+      if (errorBox) {
+        errorBox.textContent = report;
+        errorBox.classList.remove('hidden');
+      }
+
+      alert(
+        'RitterManager API-Diagnose:\n\n' + report
+      );
+    } else {
+      $('#errorBox')?.classList.add('hidden');
+    }
+
+    setText('#refreshState', 'Gerade aktualisiert');
+
+    localStorage.setItem(
+      'rm_last',
+      String(Date.now())
+    );
+  } catch (e) {
+    const msg = e?.message || String(e);
+
+    const errorBox = $('#errorBox');
+
+    if (errorBox) {
+      errorBox.textContent = msg;
+      errorBox.classList.remove('hidden');
+    }
+
+    setText(
+      '#refreshState',
+      'Fehler: ' + msg
+    );
+  } finally {
+    state.busy = false;
+
+    if (btn) btn.disabled = false;
+  }
 }
 
-function openSettings(){
-  $('#tokenInput').value=token();
-  $('#proxyInput').value=proxyUrl();
-  $('#autoInput').checked=autoRefresh();
-  $('#drawer').classList.add('open');
+function openSettings() {
+  const drawer = $('#settingsDrawer');
+
+  if (!drawer) return;
+
+  $('#proxyInput').value = proxyUrl();
+  $('#tokenInput').value = token();
+
+  drawer.classList.add('open');
 }
-function closeSettings(){ $('#drawer').classList.remove('open'); }
-function saveSettings(){
-  const t=$('#tokenInput').value.trim();
-  const proxy=$('#proxyInput').value.trim().replace(/\/+$/,'');
-  if(t) localStorage.setItem('rm_token',t); else localStorage.removeItem('rm_token');
-  if(proxy) localStorage.setItem('rm_proxy',proxy); else localStorage.removeItem('rm_proxy');
-  localStorage.setItem('rm_auto',$('#autoInput').checked?'1':'0');
+
+function closeSettings() {
+  $('#settingsDrawer')?.classList.remove('open');
+}
+
+function saveSettings() {
+  const proxy =
+    ($('#proxyInput')?.value || '')
+      .trim()
+      .replace(/\/+$/, '');
+
+  const t =
+    ($('#tokenInput')?.value || '')
+      .trim();
+
+  localStorage.setItem(
+    'rm_proxy',
+    proxy
+  );
+
+  localStorage.setItem(
+    'rm_token',
+    t
+  );
+
   closeSettings();
-  setupTimer();
-  if(t && proxy) loadAll(); else openSettings();
-}
-function forgetToken(){
-  localStorage.removeItem('rm_token');
-  $('#tokenInput').value='';
-  $('#errorBox').textContent='Token wurde nur auf diesem Gerät gelöscht.';
-  $('#errorBox').classList.remove('hidden');
-}
-function setupTimer(){
-  if(state.timer) clearInterval(state.timer);
-  if(autoRefresh() && token() && proxyUrl()) state.timer=setInterval(loadAll,30000);
+
+  loadAll();
 }
 
-window.addEventListener('load',()=>{
-  $('#settingsBtn').addEventListener('click',openSettings);
-  $('#closeBtn').addEventListener('click',closeSettings);
-  $('#saveBtn').addEventListener('click',saveSettings);
-  $('#forgetBtn').addEventListener('click',forgetToken);
-  $('#refreshBtn').addEventListener('click',loadAll);
-  $('#drawer').addEventListener('click',e=>{if(e.target.id==='drawer') closeSettings();});
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
-  setupTimer();
-  if(token() && proxyUrl()) loadAll(); else openSettings();
-});
+function bindUI() {
+  $('#refreshBtn')?.addEventListener(
+    'click',
+    loadAll
+  );
+
+  $('#settingsBtn')?.addEventListener(
+    'click',
+    openSettings
+  );
+
+  $('#settingsClose')?.addEventListener(
+    'click',
+    closeSettings
+  );
+
+  $('#settingsSave')?.addEventListener(
+    'click',
+    saveSettings
+  );
+
+  $('#settingsDrawer')?.addEventListener(
+    'click',
+    e => {
+      if (e.target.id === 'settingsDrawer') {
+        closeSettings();
+      }
+    }
+  );
+}
+
+function startAutoRefresh() {
+  setInterval(() => {
+    if (token() && proxyUrl()) {
+      loadAll();
+    }
+  }, 30000);
+}
+
+document.addEventListener(
+  'DOMContentLoaded',
+  () => {
+    bindUI();
+    render();
+
+    if (token() && proxyUrl()) {
+      loadAll();
+    }
+
+    startAutoRefresh();
+  }
+);
