@@ -45,7 +45,7 @@
 
   <link
     rel="stylesheet"
-    href="styles.css?v=6.0.0"
+    href="styles.css?v=7.0.0"
   >
 
 </head>
@@ -79,6 +79,7 @@
       id="settingsBtn"
       class="iconbtn"
       type="button"
+      aria-label="Einstellungen"
     >
       ⚙
     </button>
@@ -102,11 +103,7 @@
       data-page="0"
       aria-label="Übersicht"
     >
-
-      <div
-        id="overviewPage"
-      ></div>
-
+      <div id="overviewPage"></div>
     </section>
 
 
@@ -115,11 +112,7 @@
       data-page="1"
       aria-label="Ritter"
     >
-
-      <div
-        id="knightPage"
-      ></div>
-
+      <div id="knightPage"></div>
     </section>
 
 
@@ -128,11 +121,7 @@
       data-page="2"
       aria-label="Rucksack"
     >
-
-      <div
-        id="backpackPage"
-      ></div>
-
+      <div id="backpackPage"></div>
     </section>
 
 
@@ -141,11 +130,7 @@
       data-page="3"
       aria-label="Welt"
     >
-
-      <div
-        id="worldPage"
-      ></div>
-
+      <div id="worldPage"></div>
     </section>
 
 
@@ -154,11 +139,7 @@
       data-page="4"
       aria-label="Mehr"
     >
-
-      <div
-        id="morePage"
-      ></div>
-
+      <div id="morePage"></div>
     </section>
 
   </main>
@@ -176,70 +157,50 @@
     <button
       data-tab="0"
       class="tab active"
+      type="button"
     >
-
       <span>⌂</span>
-
-      <small>
-        Übersicht
-      </small>
-
+      <small>Übersicht</small>
     </button>
 
 
     <button
       data-tab="1"
       class="tab"
+      type="button"
     >
-
       <span>⚔️</span>
-
-      <small>
-        Ritter
-      </small>
-
+      <small>Ritter</small>
     </button>
 
 
     <button
       data-tab="2"
       class="tab"
+      type="button"
     >
-
       <span>🎒</span>
-
-      <small>
-        Rucksack
-      </small>
-
+      <small>Rucksack</small>
     </button>
 
 
     <button
       data-tab="3"
       class="tab"
+      type="button"
     >
-
       <span>🌍</span>
-
-      <small>
-        Welt
-      </small>
-
+      <small>Welt</small>
     </button>
 
 
     <button
       data-tab="4"
       class="tab"
+      type="button"
     >
-
       <span>•••</span>
-
-      <small>
-        Mehr
-      </small>
-
+      <small>Mehr</small>
     </button>
 
   </nav>
@@ -249,6 +210,7 @@
     id="refreshBtn"
     class="floatingRefresh"
     type="button"
+    aria-label="Aktualisieren"
   >
     ↻
   </button>
@@ -287,6 +249,7 @@
         <button
           id="closeBtn"
           class="iconbtn smallIcon"
+          type="button"
         >
           ✕
         </button>
@@ -305,6 +268,8 @@
         class="input"
         id="proxyInput"
         type="url"
+        inputmode="url"
+        autocomplete="off"
         placeholder="https://...workers.dev"
       >
 
@@ -320,6 +285,7 @@
         class="input"
         id="tokenInput"
         type="password"
+        autocomplete="off"
         placeholder="Token hier einfügen"
       >
 
@@ -360,7 +326,7 @@
   </div>
 
 
-  <script src="app.js?v=6.0.0"></script>
+  <script src="app.js?v=7.0.0"></script>
 
 </body>
 </html>
