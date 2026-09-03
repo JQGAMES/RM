@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#15100b">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
+
   <title>RitterManager Dashboard</title>
 
   <link rel="manifest" href="manifest.webmanifest?v=4">
@@ -15,216 +16,553 @@
 </head>
 
 <body>
+
   <div class="app" id="app">
 
     <header class="topbar">
-      <img src="assets/klausi.jpg" class="appLogo" alt="RitterManager">
+
+      <img
+        src="assets/klausi.jpg"
+        class="appLogo"
+        alt="RitterManager"
+      >
 
       <div class="titlewrap">
         <h1>RitterManager</h1>
-        <div class="subtitle" id="season">Persönliche Übersicht</div>
+        <div class="subtitle" id="season">
+          Persönliche Übersicht
+        </div>
       </div>
 
-      <button class="iconbtn" id="settingsBtn" type="button" aria-label="Einstellungen">⚙</button>
+      <button
+        class="iconbtn"
+        id="settingsBtn"
+        type="button"
+        aria-label="Einstellungen"
+      >
+        ⚙
+      </button>
+
     </header>
 
-    <div id="errorBox" class="notice error hidden"></div>
+    <div
+      id="errorBox"
+      class="notice error hidden"
+    ></div>
+
+
+    <!-- PROFIL -->
 
     <section class="hero compact-card">
+
       <div class="heroIdentity">
+
         <div class="heroText">
-          <div class="name" id="knightName">Mein Ritter</div>
-          <div class="rankline" id="rankTitle">Noch nicht verbunden</div>
-          <div class="location" id="location">Standort unbekannt</div>
+
+          <div
+            class="name"
+            id="knightName"
+          >
+            Mein Ritter
+          </div>
+
+          <div
+            class="rankline"
+            id="rankTitle"
+          >
+            Noch nicht verbunden
+          </div>
+
+          <div
+            class="location"
+            id="location"
+          >
+            Standort unbekannt
+          </div>
+
         </div>
 
-        <span id="online" class="online offline">OFFLINE</span>
+        <span
+          id="online"
+          class="online offline"
+        >
+          OFFLINE
+        </span>
+
       </div>
+
 
       <div class="stats">
-        <div class="stat">
-          <span class="statIcon">⚔️</span>
-          <div><b id="level">–</b><span>Level</span></div>
-        </div>
 
         <div class="stat">
-          <span class="statIcon">🪙</span>
-          <div><b id="gold">–</b><span>Gold</span></div>
+
+          <span class="statIcon">
+            ⚔️
+          </span>
+
+          <div>
+            <b id="level">–</b>
+            <span>Level</span>
+          </div>
+
         </div>
 
-        <div class="stat">
-          <span class="statIcon">💎</span>
-          <div><b id="diamonds">–</b><span>Diamanten</span></div>
-        </div>
 
         <div class="stat">
-          <span class="statIcon">🏆</span>
-          <div><b id="honor">–</b><span>Ruhm</span></div>
+
+          <span class="statIcon">
+            🪙
+          </span>
+
+          <div>
+            <b id="gold">–</b>
+            <span>Gold</span>
+          </div>
+
         </div>
+
+
+        <div class="stat">
+
+          <span class="statIcon">
+            💎
+          </span>
+
+          <div>
+            <b id="diamonds">–</b>
+            <span>Diamanten</span>
+          </div>
+
+        </div>
+
+
+        <div class="stat">
+
+          <span class="statIcon">
+            🏆
+          </span>
+
+          <div>
+            <b id="honor">–</b>
+            <span>Ruhm</span>
+          </div>
+
+        </div>
+
       </div>
+
     </section>
+
+
+    <!-- BUFFS + SHOP -->
 
     <section class="priorityGrid">
 
+
       <article class="panel priority">
+
         <div class="panelHead">
+
           <div>
-            <span class="eyebrow">WICHTIG</span>
-            <h2>⏱️ Aktive Wirkungen</h2>
+
+            <span class="eyebrow">
+              AKTUELLER BUFF
+            </span>
+
+            <h2>
+              ⏱️ Aktive Wirkungen
+            </h2>
+
           </div>
 
-          <span class="countBadge" id="buffCount">0</span>
+          <span
+            class="countBadge"
+            id="buffCount"
+          >
+            0
+          </span>
+
         </div>
 
-        <div id="buffs" class="stack">
-          <div class="empty">Keine Daten geladen.</div>
+
+        <div
+          id="buffs"
+          class="stack"
+        >
+          <div class="empty">
+            Keine Daten geladen.
+          </div>
         </div>
+
       </article>
 
+
       <article class="panel priority">
+
         <div class="panelHead">
+
           <div>
-            <span class="eyebrow">AKTUELL</span>
-            <h2>🛒 Shop</h2>
+
+            <span class="eyebrow">
+              AKTUELL
+            </span>
+
+            <h2>
+              🛒 Shop
+            </h2>
+
           </div>
 
-          <span class="countBadge" id="shopCount">0</span>
+          <span
+            class="countBadge"
+            id="shopCount"
+          >
+            0
+          </span>
+
         </div>
 
-        <div id="shop" class="shopGrid">
-          <div class="empty">Keine Shopdaten geladen.</div>
+
+        <div
+          id="shop"
+          class="shopGrid"
+        >
+          <div class="empty">
+            Shop wird geladen.
+          </div>
         </div>
+
       </article>
 
     </section>
+
+
+    <!-- EVENTS -->
 
     <section class="panel eventsPanel">
 
       <div class="panelHead">
+
         <div>
-          <span class="eyebrow">EVENTS</span>
-          <h2>📅 Jetzt & als Nächstes</h2>
+
+          <span class="eyebrow">
+            EVENTS
+          </span>
+
+          <h2>
+            📅 Jetzt & als Nächstes
+          </h2>
+
         </div>
+
       </div>
+
 
       <div class="eventsGrid">
 
-        <div>
-          <div class="miniTitle">Läuft gerade</div>
 
-          <div id="eventsNow" class="eventList">
-            <div class="empty">Keine Daten geladen.</div>
+        <div>
+
+          <div class="miniTitle">
+            Läuft gerade
           </div>
+
+          <div
+            id="eventsNow"
+            class="eventList"
+          >
+            <div class="empty">
+              Events werden geladen.
+            </div>
+          </div>
+
         </div>
 
-        <div>
-          <div class="miniTitle">Als Nächstes</div>
 
-          <div id="eventsNext" class="eventList">
-            <div class="empty">Wird aus den API-Eventdaten ermittelt.</div>
+        <div>
+
+          <div class="miniTitle">
+            Als Nächstes
           </div>
+
+          <div
+            id="eventsNext"
+            class="eventList"
+          >
+            <div class="empty">
+              Wochenplan wird geladen.
+            </div>
+          </div>
+
         </div>
 
       </div>
+
     </section>
+
+
+    <!-- FORTSCHRITT -->
 
     <section class="panel">
 
       <div class="panelHead">
-        <h2>📊 Fortschritt</h2>
-        <span class="refreshState" id="refreshState">Noch nicht geladen</span>
+
+        <h2>
+          📊 Fortschritt
+        </h2>
+
+        <span
+          class="refreshState"
+          id="refreshState"
+        >
+          Noch nicht geladen
+        </span>
+
       </div>
 
+
       <div class="metricsGrid">
-        <div class="metric"><span>Rang</span><strong id="rank">–</strong></div>
-        <div class="metric"><span>Schwert</span><strong id="sword">–</strong></div>
-        <div class="metric"><span>Rüstung</span><strong id="armor">–</strong></div>
-        <div class="metric"><span>Unterkunft</span><strong id="shelter">–</strong></div>
-        <div class="metric"><span>Abenteuer</span><strong id="adventure">–</strong></div>
-        <div class="metric"><span>Turm</span><strong id="tower">–</strong></div>
-        <div class="metric"><span>Jagdlevel</span><strong id="huntLevel">–</strong></div>
-        <div class="metric"><span>Jagdpunkte</span><strong id="huntPoints">–</strong></div>
-        <div class="metric"><span>Kills</span><strong id="huntKills">–</strong></div>
-        <div class="metric"><span>Kochen</span><strong id="cooking">–</strong></div>
-        <div class="metric"><span>Ingenieur</span><strong id="engineering">–</strong></div>
+
+        <div class="metric">
+          <span>Rang</span>
+          <strong id="rank">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Schwert</span>
+          <strong id="sword">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Rüstung</span>
+          <strong id="armor">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Unterkunft</span>
+          <strong id="shelter">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Abenteuer</span>
+          <strong id="adventure">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Turm</span>
+          <strong id="tower">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Jagdlevel</span>
+          <strong id="huntLevel">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Jagdpunkte</span>
+          <strong id="huntPoints">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Kills</span>
+          <strong id="huntKills">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Kochen</span>
+          <strong id="cooking">–</strong>
+        </div>
+
+        <div class="metric">
+          <span>Ingenieur</span>
+          <strong id="engineering">–</strong>
+        </div>
+
       </div>
 
     </section>
+
+
+    <!-- WEITERE DATEN -->
 
     <section class="twoCol">
 
+
       <article class="panel">
-        <div class="panelHead"><h2>✨ Fähigkeiten</h2></div>
 
-        <div class="miniTitle">Kampf</div>
-        <div id="combatSkills" class="chips">
-          <span class="empty">Keine Daten</span>
+        <div class="panelHead">
+          <h2>
+            ✨ Fähigkeiten
+          </h2>
         </div>
 
-        <div class="miniTitle">Düsterwald</div>
-        <div id="huntSkills" class="chips">
-          <span class="empty">Keine Daten</span>
+        <div class="miniTitle">
+          Kampf
         </div>
+
+        <div
+          id="combatSkills"
+          class="chips"
+        >
+          <span class="empty">
+            Keine Daten
+          </span>
+        </div>
+
+
+        <div class="miniTitle">
+          Düsterwald
+        </div>
+
+        <div
+          id="huntSkills"
+          class="chips"
+        >
+          <span class="empty">
+            Keine Daten
+          </span>
+        </div>
+
       </article>
 
-      <article class="panel">
-        <div class="panelHead"><h2>🔨 Schmied</h2></div>
-        <div id="smith" class="stack">
-          <div class="empty">Keine Daten</div>
-        </div>
-      </article>
 
       <article class="panel">
-        <div class="panelHead"><h2>🐉 Drache</h2></div>
-        <div id="dragon" class="stack">
-          <div class="empty">Keine Daten</div>
+
+        <div class="panelHead">
+          <h2>
+            🔨 Schmied
+          </h2>
         </div>
+
+        <div
+          id="smith"
+          class="stack"
+        >
+          <div class="empty">
+            Keine Daten
+          </div>
+        </div>
+
       </article>
 
+
       <article class="panel">
-        <div class="panelHead"><h2>🏕️ Außenposten</h2></div>
-        <div id="outpost" class="stack">
-          <div class="empty">Keine Daten</div>
+
+        <div class="panelHead">
+          <h2>
+            🐉 Drache
+          </h2>
         </div>
+
+        <div
+          id="dragon"
+          class="stack"
+        >
+          <div class="empty">
+            Keine Daten
+          </div>
+        </div>
+
+      </article>
+
+
+      <article class="panel">
+
+        <div class="panelHead">
+          <h2>
+            🏕️ Außenposten
+          </h2>
+        </div>
+
+        <div
+          id="outpost"
+          class="stack"
+        >
+          <div class="empty">
+            Keine Daten
+          </div>
+        </div>
+
       </article>
 
     </section>
 
-    <button id="installBtn" class="installBtn hidden" type="button">
+
+    <button
+      id="installBtn"
+      class="installBtn hidden"
+      type="button"
+    >
       📲 RitterManager als App installieren
     </button>
 
+
     <div class="bottomSpacer"></div>
+
   </div>
+
+
+  <!-- UNTEN -->
 
   <nav class="bottomBar">
 
-    <button class="secondary" id="settingsFooter" type="button">
+    <button
+      class="secondary"
+      id="settingsFooter"
+      type="button"
+    >
       ⚙ Einstellungen
     </button>
 
-    <button class="primary" id="refreshBtn" type="button">
+    <button
+      class="primary"
+      id="refreshBtn"
+      type="button"
+    >
       ↻ Aktualisieren
     </button>
 
   </nav>
 
-  <div class="drawer" id="drawer">
+
+  <!-- EINSTELLUNGEN -->
+
+  <div
+    class="drawer"
+    id="drawer"
+  >
 
     <div class="sheet">
 
       <div class="sheetHead">
+
         <div>
-          <div class="eyebrow">EINSTELLUNGEN</div>
-          <h2>Dashboard verbinden</h2>
+
+          <div class="eyebrow">
+            EINSTELLUNGEN
+          </div>
+
+          <h2>
+            Dashboard verbinden
+          </h2>
+
         </div>
 
-        <button class="iconbtn smallIcon" id="closeBtn" type="button">
+        <button
+          class="iconbtn smallIcon"
+          id="closeBtn"
+          type="button"
+        >
           ✕
         </button>
+
       </div>
 
-      <label class="label" for="proxyInput">
+
+      <label
+        class="label"
+        for="proxyInput"
+      >
         Cloudflare Worker-Adresse
       </label>
 
@@ -237,7 +575,11 @@
         placeholder="https://...workers.dev"
       >
 
-      <label class="label" for="tokenInput">
+
+      <label
+        class="label"
+        for="tokenInput"
+      >
         RitterManager API-Token
       </label>
 
@@ -249,24 +591,48 @@
         placeholder="Token hier einfügen"
       >
 
+
       <label class="checkRow">
-        <input id="autoInput" type="checkbox">
-        <span>automatisch jede Minute synchronisieren</span>
+
+        <input
+          id="autoInput"
+          type="checkbox"
+        >
+
+        <span>
+          automatisch jede Minute synchronisieren
+        </span>
+
       </label>
 
+
       <div class="buttonRow">
-        <button class="primary grow" id="saveBtn" type="button">
+
+        <button
+          class="primary grow"
+          id="saveBtn"
+          type="button"
+        >
           Speichern & verbinden
         </button>
+
       </div>
 
-      <button class="danger" id="forgetBtn" type="button">
+
+      <button
+        class="danger"
+        id="forgetBtn"
+        type="button"
+      >
         Token von diesem Gerät löschen
       </button>
 
     </div>
+
   </div>
 
-  <script src="app.js?v=4.1.0"></script>
+
+  <script src="app.js?v=5.0.0"></script>
+
 </body>
 </html>
