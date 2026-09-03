@@ -1,5 +1,5 @@
 const CACHE =
-  'rittermanager-v6';
+  'rittermanager-v7';
 
 
 const ASSETS = [
@@ -8,9 +8,9 @@ const ASSETS = [
 
   './index.html',
 
-  './styles.css?v=6.0.0',
+  './styles.css?v=7.0.0',
 
-  './app.js?v=6.0.0',
+  './app.js?v=7.0.0',
 
   './manifest.webmanifest?v=4',
 
@@ -29,6 +29,7 @@ self.addEventListener(
 
     self.skipWaiting();
 
+
     event.waitUntil(
 
       caches
@@ -41,9 +42,7 @@ self.addEventListener(
               ASSETS
             )
         )
-
     );
-
   }
 );
 
@@ -68,17 +67,15 @@ self.addEventListener(
               await caches.delete(
                 key
               );
-
             }
-
           }
+
 
           await self.clients.claim();
 
         }
       )()
     );
-
   }
 );
 
@@ -116,8 +113,8 @@ self.addEventListener(
 
 
     /*
-      Bei den App-Dateien immer zuerst
-      die aktuelle GitHub-Version laden.
+      App-Dateien zuerst
+      frisch von GitHub laden.
     */
 
     event.respondWith(
@@ -148,11 +145,10 @@ self.addEventListener(
                     response.clone()
                   )
               );
-
           }
 
-          return response;
 
+          return response;
         }
       )
 
@@ -162,8 +158,6 @@ self.addEventListener(
             event.request
           )
       )
-
     );
-
   }
 );
