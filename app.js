@@ -1,39 +1,6 @@
 const $ = (s) => document.querySelector(s);
-
-const state = {
-  profile: null,
-  buffs: null,
-  busy: false,
-  timer: null,
-  countdownTimer: null,
-  lastRequestAt: 0
-};
-
-const AUTO_REFRESH_MS = 60000;
-const MANUAL_COOLDOWN_MS = 5000;
-
-function esc(v) {
-  return String(v ?? '').replace(/[&<>"']/g, m => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  }[m]));
-}
-
-function fmt(v) {
-  if (v === null || v === undefined || v === '') return '–';
-  if (typeof v === 'number') {
-    return new Intl.NumberFormat('de-DE').format(v);
-  }
-  return String(v);
-}
-
-function setText(selector, value) {
-  const el = $(selector);
-  if (el) el.textContent = value ?? '–';
-}
+const BUILD = 'PROFILTEST-2057';
+let busy = false;
 
 function token() {
   return (localStorage.getItem('rm_token') || '').trim();
@@ -45,23 +12,94 @@ function proxyUrl() {
     .replace(/\/+$/, '');
 }
 
-function autoRefresh() {
-  return localStorage.getItem('rm_auto') !== '0';
+function fmt(v) {
+  if (v === null || v === undefined || v === '') return '–';
+
+  if (typeof v === 'number') {
+    return new Intl.NumberFormat('de-DE').format(v);
+  }
+
+  return String(v);
 }
 
-function showError(message) {
+function setText(selector, value) {
+  const el = $(selector);
+
+  if (el) {
+    el.textContent = value ?? '–';
+  }
+}
+
+function showBox(text) {
   const box = $('#errorBox');
+
   if (!box) return;
 
-  box.textContent = message;
+  box.textContent = text;
   box.classList.remove('hidden');
 }
 
-function hideError() {
-  $('#errorBox')?.classList.add('hidden');
+function openSettings() {
+  const drawer = $('#drawer');
+
+  if (!drawer) return;
+
+  if ($('#tokenInput')) {
+    $('#tokenInput').value = token();
+  }
+
+  if ($('#proxyInput')) {
+    $('#proxyInput').value = proxyUrl();
+  }
+
+  if ($('#autoInput')) {
+    $('#autoInput').checked = false;
+  }
+
+  drawer.classList.add('open');
 }
 
-async function api(path) {
+function closeSettings() {
+  $('#drawer')?.classList.remove('open');
+}
+
+function saveSettings() {
+  const t = ($('#tokenInput')?.value || '').trim();
+
+  const proxy = ($('#proxyInput')?.value || '')
+    .trim()
+    .replace(/\/+$/, '');
+
+  if (t) {
+    localStorage.setItem('rm_token', t);
+  } else {
+    localStorage.removeItem('rm_token');
+  }
+
+  if (proxy) {
+    localStorage.setItem('rm_proxy', proxy);
+  } else {
+    localStorage.removeItem('rm_proxy');
+  }
+
+  localStorage.setItem('rm_auto', '0');
+
+  closeSettings();
+
+  loadProfile();
+}
+
+function forgetToken() {
+  localStorage.removeItem('rm_token');
+
+  if ($('#tokenInput')) {
+    $('#tokenInput').value = '';
+  }
+
+  showBox('Token wurde auf diesem Gerät gelöscht.');
+}
+
+async function fetchProfile() {
   const t = token();
   const proxy = proxyUrl();
 
@@ -73,86 +111,123 @@ async function api(path) {
     throw new Error('Keine Cloudflare-Worker-Adresse gespeichert.');
   }
 
-  let response;
-
-  try {
-    response = await fetch(proxy + path, {
+  const response = await fetch(
+    proxy + '/v1/me',
+    {
       method: 'GET',
+
       headers: {
         'Authorization': `Bearer ${t}`,
         'Accept': 'application/json'
       },
+
       cache: 'no-store'
-    });
-  } catch (err) {
-    throw new Error(
-      `Worker nicht erreichbar: ${err?.message || err}`
-    );
-  }
+    }
+  );
 
   const raw = await response.text();
 
-  let body = null;
+  let body;
 
   try {
-    body = raw ? JSON.parse(raw) : null;
+    body = raw
+      ? JSON.parse(raw)
+      : null;
   } catch {
-    body = raw;
+    body = null;
   }
 
   if (!response.ok) {
     const detail =
-      (
-        body &&
-        typeof body === 'object' &&
-        (body.error || body.message)
-      ) ||
-      (
-        typeof body === 'string' &&
-        body
-      ) ||
-      'Keine weitere Servermeldung';
+      body?.error ||
+      body?.message ||
+      raw ||
+      'keine Servermeldung';
 
     throw new Error(
-      `${path}: HTTP ${response.status} – ${detail}`
+      `HTTP ${response.status}: ${detail}`
     );
   }
 
   if (!body || typeof body !== 'object') {
     throw new Error(
-      `${path}: Antwort war kein gültiges JSON-Objekt.`
+      'HTTP 200, aber keine gültigen JSON-Daten: ' +
+      raw.slice(0, 500)
     );
+  }
+
+  return {
+    body,
+    raw
+  };
+}
+
+function normalizeProfile(body) {
+  if (
+    body?.data &&
+    typeof body.data === 'object'
+  ) {
+    return body.data;
+  }
+
+  if (
+    body?.profile &&
+    typeof body.profile === 'object'
+  ) {
+    return body.profile;
+  }
+
+  if (
+    body?.player &&
+    typeof body.player === 'object'
+  ) {
+    return body.player;
   }
 
   return body;
 }
 
-function renderProfile() {
-  const p = state.profile;
+function renderProfile(p) {
+  setText(
+    '#knightName',
+    p.name ?? 'Name fehlt'
+  );
 
-  if (!p) return;
-
-  setText('#knightName', p.name ?? 'Unbekannter Ritter');
-  setText('#level', fmt(p.level));
+  setText(
+    '#level',
+    fmt(p.level)
+  );
 
   setText(
     '#gold',
-    fmt(p.currencies?.gold)
+    fmt(
+      p.currencies?.gold ??
+      p.gold
+    )
   );
 
   setText(
     '#diamonds',
-    fmt(p.currencies?.diamonds)
+    fmt(
+      p.currencies?.diamonds ??
+      p.diamonds
+    )
   );
 
   setText(
     '#honor',
-    fmt(p.ranking?.honor)
+    fmt(
+      p.ranking?.honor ??
+      p.honor
+    )
   );
 
   setText(
     '#rank',
-    fmt(p.ranking?.position)
+    fmt(
+      p.ranking?.position ??
+      p.rank
+    )
   );
 
   setText(
@@ -225,288 +300,58 @@ function renderProfile() {
         ? 'online'
         : 'online offline';
   }
-
-  setText(
-    '#season',
-    'Persönliche Übersicht'
-  );
 }
 
-function buffExpiryMs(buff) {
-  if (
-    Number.isFinite(
-      Number(buff?.expires_at)
-    )
-  ) {
-    return Number(buff.expires_at) * 1000;
-  }
+async function loadProfile() {
+  if (busy) return;
 
-  if (
-    Number.isFinite(
-      Number(buff?.remaining_seconds)
-    )
-  ) {
-    return (
-      Date.now() +
-      Number(buff.remaining_seconds) * 1000
-    );
-  }
+  busy = true;
 
-  return null;
-}
-
-function formatCountdown(ms) {
-  const total = Math.max(
-    0,
-    Math.ceil(ms / 1000)
-  );
-
-  const h = Math.floor(total / 3600);
-  const m = Math.floor(
-    (total % 3600) / 60
-  );
-  const s = total % 60;
-
-  if (h > 0) {
-    return (
-      `${h}:` +
-      `${String(m).padStart(2, '0')}:` +
-      `${String(s).padStart(2, '0')}`
-    );
-  }
-
-  return (
-    `${m}:` +
-    `${String(s).padStart(2, '0')}`
-  );
-}
-
-function renderBuffs() {
-  const el = $('#buffs');
-
-  if (!el) return;
-
-  const data = state.buffs || {};
-
-  const all = [
-    ...(
-      Array.isArray(data.buffs)
-        ? data.buffs.map(
-            x => ({
-              ...x,
-              debuff: false
-            })
-          )
-        : []
-    ),
-
-    ...(
-      Array.isArray(data.debuffs)
-        ? data.debuffs.map(
-            x => ({
-              ...x,
-              debuff: true
-            })
-          )
-        : []
-    )
-  ];
-
-  if (!all.length) {
-    el.innerHTML =
-      '<div class="small">' +
-      'Keine aktiven Buffs oder Debuffs.' +
-      '</div>';
-
-    return;
-  }
-
-  el.innerHTML = all.map((b, i) => {
-    const expiry =
-      buffExpiryMs(b);
-
-    const countdown =
-      expiry
-        ? formatCountdown(
-            expiry - Date.now()
-          )
-        : (
-            fmt(b.remaining_minutes) +
-            ' Min'
-          );
-
-    return `
-      <div class="buff">
-
-        <div class="buffTop">
-
-          <span>
-            ${esc(
-              b.name ||
-              b.type ||
-              'Wirkung'
-            )}
-          </span>
-
-          <span
-            id="buffTimer${i}"
-            data-expires="${expiry || ''}"
-          >
-            ${b.debuff ? '⚠ ' : ''}
-            ${countdown}
-          </span>
-
-        </div>
-
-        <div class="buffDesc">
-
-          ${esc(
-            b.description || ''
-          )}
-
-          ${
-            b.value !== undefined
-              ? ` · Wert ${esc(b.value)}`
-              : ''
-          }
-
-        </div>
-
-      </div>
-    `;
-  }).join('');
-}
-
-function updateBuffCountdowns() {
-  document
-    .querySelectorAll(
-      '[data-expires]'
-    )
-    .forEach(el => {
-      const expiry =
-        Number(el.dataset.expires);
-
-      if (
-        !Number.isFinite(expiry) ||
-        expiry <= 0
-      ) {
-        return;
-      }
-
-      const prefix =
-        el.textContent
-          .trim()
-          .startsWith('⚠')
-          ? '⚠ '
-          : '';
-
-      el.textContent =
-        prefix +
-        formatCountdown(
-          expiry - Date.now()
-        );
-    });
-}
-
-async function loadCore(force = false) {
-  if (state.busy) return;
-
-  const now = Date.now();
-
-  if (
-    force &&
-    now - state.lastRequestAt <
-      MANUAL_COOLDOWN_MS
-  ) {
-    setText(
-      '#refreshState',
-      'Bitte kurz warten…'
-    );
-
-    return;
-  }
-
-  state.busy = true;
-  state.lastRequestAt = now;
-
-  $('#app')
-    ?.classList
-    .add('loading');
+  $('#app')?.classList.add('loading');
 
   setText(
     '#refreshState',
-    'Verbinde…'
+    'Teste /v1/me …'
   );
 
   try {
-    /*
-      ERSTER UND ENTSCHEIDENDER TEST:
-      Nur /v1/me.
+    const { body, raw } =
+      await fetchProfile();
 
-      Sobald diese Anfrage erfolgreich ist,
-      werden die Profildaten sofort angezeigt.
-    */
+    const p =
+      normalizeProfile(body);
 
-    state.profile =
-      await api('/v1/me');
+    renderProfile(p);
 
-    renderProfile();
+    const keys =
+      Object.keys(body).join(', ');
 
-    /*
-      Erst DANACH Buffs laden.
-      Selbst wenn Buffs scheitern,
-      bleiben Profildaten sichtbar.
-    */
-
-    try {
-      state.buffs =
-        await api('/v1/me/buffs');
-
-      renderBuffs();
-
-    } catch (buffErr) {
-      showError(
-        'Profil geladen. ' +
-        'Buffs noch nicht geladen: ' +
-        (
-          buffErr.message ||
-          buffErr
-        )
-      );
-
-      setText(
-        '#refreshState',
-        'Profil geladen'
-      );
-
-      return;
-    }
-
-    hideError();
+    showBox(
+      `API TEST OK (${BUILD})\n` +
+      `HTTP 200 von /v1/me\n` +
+      `Name: ${p.name ?? 'FEHLT'} · ` +
+      `Level: ${p.level ?? 'FEHLT'}\n` +
+      `Antwort-Felder: ${keys || '(keine)'}\n` +
+      `Rohantwort: ${raw.slice(0, 1200)}`
+    );
 
     setText(
       '#refreshState',
-      `Aktuell · ${
-        new Date().toLocaleTimeString(
-          'de-DE',
-          {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-          }
-        )
-      }`
+      'Profil erfolgreich geladen'
     );
 
   } catch (err) {
-    showError(
-      err?.message ||
-      String(err)
+    showBox(
+      `API TEST FEHLER (${BUILD})\n` +
+      (
+        err?.message ||
+        String(err)
+      )
     );
 
     setText(
       '#refreshState',
-      'Verbindung fehlgeschlagen'
+      'Profiltest fehlgeschlagen'
     );
 
   } finally {
@@ -514,151 +359,24 @@ async function loadCore(force = false) {
       ?.classList
       .remove('loading');
 
-    state.busy = false;
+    busy = false;
   }
 }
 
-function openSettings() {
-  const drawer = $('#drawer');
-
-  if (!drawer) return;
-
-  if ($('#tokenInput')) {
-    $('#tokenInput').value =
-      token();
-  }
-
-  if ($('#proxyInput')) {
-    $('#proxyInput').value =
-      proxyUrl();
-  }
-
-  if ($('#autoInput')) {
-    $('#autoInput').checked =
-      autoRefresh();
-  }
-
-  drawer.classList.add('open');
-}
-
-function closeSettings() {
-  $('#drawer')
-    ?.classList
-    .remove('open');
-}
-
-function setupTimer() {
-  if (state.timer) {
-    clearInterval(
-      state.timer
-    );
-  }
-
-  state.timer = null;
-
-  if (
-    autoRefresh() &&
-    token() &&
-    proxyUrl()
-  ) {
-    state.timer =
-      setInterval(
-        () => loadCore(false),
-        AUTO_REFRESH_MS
-      );
-  }
-}
-
-function setupCountdownTimer() {
-  if (state.countdownTimer) {
-    clearInterval(
-      state.countdownTimer
-    );
-  }
-
-  state.countdownTimer =
-    setInterval(
-      updateBuffCountdowns,
-      1000
-    );
-}
-
-function saveSettings() {
-  const t =
-    (
-      $('#tokenInput')
-        ?.value || ''
-    ).trim();
-
-  const proxy =
-    (
-      $('#proxyInput')
-        ?.value || ''
-    )
-      .trim()
-      .replace(/\/+$/, '');
-
-  if (t) {
-    localStorage.setItem(
-      'rm_token',
-      t
-    );
-  } else {
-    localStorage.removeItem(
-      'rm_token'
-    );
-  }
-
-  if (proxy) {
-    localStorage.setItem(
-      'rm_proxy',
-      proxy
-    );
-  } else {
-    localStorage.removeItem(
-      'rm_proxy'
-    );
-  }
-
-  localStorage.setItem(
-    'rm_auto',
-    $('#autoInput')?.checked
-      ? '1'
-      : '0'
-  );
-
-  closeSettings();
-
-  setupTimer();
-
-  if (t && proxy) {
-    loadCore(true);
-  } else {
-    openSettings();
-  }
-}
-
-function forgetToken() {
-  localStorage.removeItem(
-    'rm_token'
-  );
-
-  if ($('#tokenInput')) {
-    $('#tokenInput').value = '';
-  }
-
-  showError(
-    'Token wurde nur auf diesem Gerät gelöscht.'
-  );
-}
+window.openSettings = openSettings;
 
 window.addEventListener(
   'load',
   () => {
     /*
-      Diese IDs habe ich gegen Ihre
-      vorhandene index.html geprüft.
+      Wenn diese Anzeige erscheint,
+      wissen wir sicher:
+      Genau diese neue app.js läuft.
     */
+    setText(
+      '#season',
+      BUILD
+    );
 
     $('#settingsBtn')
       ?.addEventListener(
@@ -693,7 +411,7 @@ window.addEventListener(
     $('#refreshBtn')
       ?.addEventListener(
         'click',
-        () => loadCore(true)
+        loadProfile
       );
 
     $('#drawer')
@@ -709,15 +427,11 @@ window.addEventListener(
         }
       );
 
-    setupCountdownTimer();
-
-    setupTimer();
-
     if (
       token() &&
       proxyUrl()
     ) {
-      loadCore(false);
+      loadProfile();
     } else {
       openSettings();
     }
