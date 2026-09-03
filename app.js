@@ -15,77 +15,23 @@ const MANUAL_COOLDOWN_MS = 8000;
 
 let lastManualRefresh = 0;
 
-const WEEKLY_EVENTS = [
-  {
-    day:1,
-    icon:'🏹',
-    name:'Jagd-Montag',
-    desc:'Regelmäßiges Montags-Event rund um Jagd und Düsterwald.'
-  },
-  {
-    day:2,
-    icon:'🎪',
-    name:'Jahrmarkt',
-    desc:'Regelmäßiges Dienstags-Event.'
-  },
-  {
-    day:3,
-    icon:'⚔️',
-    name:'Kampfklassen / Turnier',
-    desc:'Regelmäßiges Mittwochs-Event.'
-  },
-  {
-    day:4,
-    icon:'🏆',
-    name:'Doppel-Ruhm',
-    desc:'Regelmäßiges Donnerstags-Event.'
-  },
-  {
-    day:5,
-    icon:'🏰',
-    name:'Ritterspiele – Registrierung',
-    desc:'Freitags startet die Registrierung.'
-  },
-  {
-    day:6,
-    icon:'⚔️',
-    name:'Ritterspiele – Kämpfe',
-    desc:'Samstags laufen die Kämpfe.'
-  },
-  {
-    day:0,
-    icon:'👑',
-    name:'Ritterspiele – Siegerehrung',
-    desc:'Sonntags folgt die Siegerehrung.'
-  }
-];
-
 function esc(v){
-  return String(v ?? '').replace(
-    /[&<>"']/g,
-    m=>({
-      '&':'&amp;',
-      '<':'&lt;',
-      '>':'&gt;',
-      '"':'&quot;',
-      "'":'&#39;'
-    }[m])
-  );
+  return String(v ?? '').replace(/[&<>"']/g,m=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[m]));
 }
 
 function fmt(v){
-  if(
-    v === null ||
-    v === undefined ||
-    v === ''
-  ){
+  if(v === null || v === undefined || v === ''){
     return '–';
   }
 
   if(typeof v === 'number'){
-    return new Intl.NumberFormat(
-      'de-DE'
-    ).format(v);
+    return new Intl.NumberFormat('de-DE').format(v);
   }
 
   return String(v);
@@ -95,43 +41,27 @@ function setText(sel,val){
   const el = $(sel);
 
   if(el){
-    el.textContent =
-      val ?? '–';
+    el.textContent = val ?? '–';
   }
 }
 
 function token(){
-  return (
-    localStorage.getItem(
-      'rm_token'
-    ) || ''
-  ).trim();
+  return (localStorage.getItem('rm_token') || '').trim();
 }
 
 function proxyUrl(){
-  return (
-    localStorage.getItem(
-      'rm_proxy'
-    ) || ''
-  )
+  return (localStorage.getItem('rm_proxy') || '')
     .trim()
     .replace(/\/+$/,'');
 }
 
 function autoRefresh(){
-  return (
-    localStorage.getItem(
-      'rm_auto'
-    ) !== '0'
-  );
+  return localStorage.getItem('rm_auto') !== '0';
 }
 
 function sleep(ms){
   return new Promise(
-    resolve=>setTimeout(
-      resolve,
-      ms
-    )
+    resolve=>setTimeout(resolve,ms)
   );
 }
 
@@ -152,19 +82,14 @@ function unwrap(body){
 }
 
 function showError(text){
-  const box =
-    $('#errorBox');
+  const box = $('#errorBox');
 
   if(!box){
     return;
   }
 
-  box.textContent =
-    text;
-
-  box.classList.remove(
-    'hidden'
-  );
+  box.textContent = text;
+  box.classList.remove('hidden');
 }
 
 function hideError(){
@@ -204,8 +129,7 @@ async function api(path){
         `Rate-Limit-Pause: noch ${sec} Sekunden.`
       );
 
-    err.rateLimited =
-      true;
+    err.rateLimited = true;
 
     throw err;
   }
@@ -248,7 +172,6 @@ async function api(path){
     throw new Error(
       `Worker nicht erreichbar: ${e?.message || e}`
     );
-
   }
 
   const raw =
@@ -289,8 +212,7 @@ async function api(path){
           `HTTP 429 – ${detail}`
         );
 
-      err.rateLimited =
-        true;
+      err.rateLimited = true;
 
       throw err;
     }
@@ -443,10 +365,7 @@ function expiresAtMs(obj){
   return null;
 }
 
-function effectIcon(
-  type,
-  debuff
-){
+function effectIcon(type,debuff){
 
   if(debuff){
     return '☠️';
@@ -473,9 +392,7 @@ function effectIcon(
   );
 }
 
-function currencyIcon(
-  currency
-){
+function currencyIcon(currency){
 
   const c =
     String(
@@ -915,6 +832,70 @@ function renderBuffs(){
       .join('');
 }
 
+function normalizeShopOffers(d){
+
+  if(
+    Array.isArray(d)
+  ){
+    return d;
+  }
+
+  if(
+    Array.isArray(
+      d?.offers
+    )
+  ){
+    return d.offers;
+  }
+
+  if(
+    Array.isArray(
+      d?.items
+    )
+  ){
+    return d.items;
+  }
+
+  if(
+    Array.isArray(
+      d?.shop?.offers
+    )
+  ){
+    return d.shop.offers;
+  }
+
+  if(
+    Array.isArray(
+      d?.shop?.items
+    )
+  ){
+    return d.shop.items;
+  }
+
+  if(
+    d &&
+    typeof d === 'object'
+  ){
+
+    const values =
+      Object.values(d);
+
+    const arrayCandidate =
+      values.find(
+        value=>
+          Array.isArray(value)
+      );
+
+    if(
+      arrayCandidate
+    ){
+      return arrayCandidate;
+    }
+  }
+
+  return [];
+}
+
 function renderShop(){
 
   const d =
@@ -927,31 +908,8 @@ function renderShop(){
     return;
   }
 
-  let offers = [];
-
-  if(
-    Array.isArray(d)
-  ){
-    offers = d;
-  }
-
-  else if(
-    Array.isArray(
-      d?.offers
-    )
-  ){
-    offers =
-      d.offers;
-  }
-
-  else if(
-    Array.isArray(
-      d?.items
-    )
-  ){
-    offers =
-      d.items;
-  }
+  const offers =
+    normalizeShopOffers(d);
 
   setText(
     '#shopCount',
@@ -961,10 +919,35 @@ function renderShop(){
   if(
     !offers.length
   ){
-    el.innerHTML =
-      '<div class="empty">' +
-      'Aktuell wurden keine Shopangebote von der API gemeldet.' +
-      '</div>';
+
+    const keys =
+      d &&
+      typeof d === 'object'
+
+        ? Object.keys(d)
+
+        : [];
+
+    el.innerHTML = `
+      <div class="empty">
+
+        Shop-Antwort erhalten,
+        aber kein Angebot erkannt.
+
+        ${
+          keys.length
+
+            ? `<br>API-Felder: ${
+                esc(
+                  keys.join(', ')
+                )
+              }`
+
+            : ''
+        }
+
+      </div>
+    `;
 
     return;
   }
@@ -973,48 +956,63 @@ function renderShop(){
     offers
 
       .map(
-        o=>`
-          <div class="shopItem">
+        offer=>{
 
-            <b>
-              ${esc(
-                o.item_name ??
-                o.name ??
-                `Item ${
-                  o.item_id ??
-                  o.id ??
-                  ''
-                }`
-              )}
-            </b>
+          const name =
+            offer.item_name ??
+            offer.name ??
+            offer.title ??
+            offer.item?.name ??
+            `Item ${
+              offer.item_id ??
+              offer.id ??
+              ''
+            }`;
 
-            <div class="price">
+          const price =
+            offer.price ??
+            offer.cost ??
+            offer.amount ??
+            offer.value;
 
-              ${currencyIcon(
-                o.currency
-              )}
+          const currency =
+            offer.currency ??
+            offer.currency_name ??
+            offer.cost_currency ??
+            '';
 
-              ${fmt(
-                o.price
-              )}
+          return `
+            <div class="shopItem">
 
-              ${esc(
-                o.currency ||
-                ''
-              )}
+              <b>
+                ${esc(name)}
+              </b>
+
+              <div class="price">
+
+                ${currencyIcon(
+                  currency
+                )}
+
+                ${fmt(
+                  price
+                )}
+
+                ${esc(
+                  currency
+                )}
+
+              </div>
 
             </div>
-
-          </div>
-        `
+          `;
+        }
       )
 
       .join('');
 }
 
-function eventLabelFromKey(
-  key
-){
+function eventLabelFromKey(key){
 
   return String(
     key || ''
@@ -1029,35 +1027,66 @@ function eventLabelFromKey(
     );
 }
 
-function collectActiveEvents(
-  d
-){
+function isTrulyActive(value){
+
+  if(
+    value === true
+  ){
+    return true;
+  }
+
+  if(
+    !value ||
+    typeof value !== 'object'
+  ){
+    return false;
+  }
+
+  if(
+    value.active === true
+  ){
+    return true;
+  }
+
+  if(
+    value.is_active === true
+  ){
+    return true;
+  }
+
+  if(
+    String(
+      value.status || ''
+    ).toLowerCase() ===
+    'active'
+  ){
+    return true;
+  }
+
+  if(
+    String(
+      value.state || ''
+    ).toLowerCase() ===
+    'active'
+  ){
+    return true;
+  }
+
+  if(
+    String(
+      value.state || ''
+    ).toLowerCase() ===
+    'running'
+  ){
+    return true;
+  }
+
+  return false;
+}
+
+function collectActiveEvents(d){
 
   const active = [];
-
-  if(
-    d.tower?.phase
-  ){
-    active.push({
-      icon:'🗼',
-      name:
-        `Schwarzer Turm: ${d.tower.phase}`,
-      meta:
-        'Aktiver Turmstatus'
-    });
-  }
-
-  if(
-    d.outpost_status
-  ){
-    active.push({
-      icon:'🏕️',
-      name:
-        `Außenposten: ${d.outpost_status}`,
-      meta:
-        'Aktueller Außenpostenstatus'
-    });
-  }
 
   Object.entries(
     d.weekly_events || {}
@@ -1066,23 +1095,26 @@ function collectActiveEvents(
       ([key,value])=>{
 
         if(
-          value === true ||
-          value?.active
+          !isTrulyActive(
+            value
+          )
         ){
-          active.push({
-            icon:'📅',
-
-            name:
-              value?.name ||
-              eventLabelFromKey(
-                key
-              ),
-
-            meta:
-              value?.description ||
-              'Regelmäßiges Wochen-Event'
-          });
+          return;
         }
+
+        active.push({
+          icon:'📅',
+
+          name:
+            value?.name ||
+            eventLabelFromKey(
+              key
+            ),
+
+          meta:
+            value?.description ||
+            'Regelmäßiges Wochen-Event'
+        });
       }
     );
 
@@ -1093,31 +1125,183 @@ function collectActiveEvents(
       ([key,value])=>{
 
         if(
-          value === true ||
-          value?.active
+          !isTrulyActive(
+            value
+          )
         ){
-          active.push({
-            icon:'✨',
-
-            name:
-              value?.name ||
-              eventLabelFromKey(
-                key
-              ),
-
-            meta:
-              value?.description ||
-              'Sonder-Event'
-          });
+          return;
         }
+
+        active.push({
+          icon:'✨',
+
+          name:
+            value?.name ||
+            eventLabelFromKey(
+              key
+            ),
+
+          meta:
+            value?.description ||
+            'Sonder-Event'
+        });
       }
     );
 
   return active;
 }
 
-function nextWeeklyEvents(
-  limit = 2
+function germanWeekday(day){
+
+  const map = {
+    0:'Sonntag',
+    1:'Montag',
+    2:'Dienstag',
+    3:'Mittwoch',
+    4:'Donnerstag',
+    5:'Freitag',
+    6:'Samstag'
+  };
+
+  return map[day] || '';
+}
+
+function parseWeekday(
+  value,
+  key=''
+){
+
+  const candidates = [
+    value?.day,
+    value?.weekday,
+    value?.day_of_week,
+    value?.schedule?.day,
+    value?.schedule?.weekday
+  ];
+
+  for(
+    const candidate
+    of candidates
+  ){
+
+    if(
+      candidate === null ||
+      candidate === undefined
+    ){
+      continue;
+    }
+
+    if(
+      Number.isInteger(
+        Number(candidate)
+      )
+    ){
+
+      const n =
+        Number(candidate);
+
+      if(
+        n >= 0 &&
+        n <= 6
+      ){
+        return n;
+      }
+
+      if(
+        n >= 1 &&
+        n <= 7
+      ){
+        return n % 7;
+      }
+    }
+
+    const t =
+      String(candidate)
+        .toLowerCase();
+
+    const names = {
+      sunday:0,
+      sonntag:0,
+      monday:1,
+      montag:1,
+      tuesday:2,
+      dienstag:2,
+      wednesday:3,
+      mittwoch:3,
+      thursday:4,
+      donnerstag:4,
+      friday:5,
+      freitag:5,
+      saturday:6,
+      samstag:6
+    };
+
+    if(
+      names[t] !== undefined
+    ){
+      return names[t];
+    }
+  }
+
+  const k =
+    String(key)
+      .toLowerCase();
+
+  if(
+    k.includes('monday') ||
+    k.includes('montag')
+  ){
+    return 1;
+  }
+
+  if(
+    k.includes('tuesday') ||
+    k.includes('dienstag')
+  ){
+    return 2;
+  }
+
+  if(
+    k.includes('wednesday') ||
+    k.includes('mittwoch')
+  ){
+    return 3;
+  }
+
+  if(
+    k.includes('thursday') ||
+    k.includes('donnerstag')
+  ){
+    return 4;
+  }
+
+  if(
+    k.includes('friday') ||
+    k.includes('freitag')
+  ){
+    return 5;
+  }
+
+  if(
+    k.includes('saturday') ||
+    k.includes('samstag')
+  ){
+    return 6;
+  }
+
+  if(
+    k.includes('sunday') ||
+    k.includes('sonntag')
+  ){
+    return 0;
+  }
+
+  return null;
+}
+
+function collectUpcomingEvents(
+  d,
+  limit=2
 ){
 
   const now =
@@ -1126,30 +1310,95 @@ function nextWeeklyEvents(
   const today =
     now.getDay();
 
-  return WEEKLY_EVENTS
+  const upcoming = [];
 
-    .map(
-      event=>{
+  const ingest =
+    (
+      source,
+      kind
+    )=>{
 
-        let delta =
-          (
-            event.day -
-            today +
-            7
-          ) % 7;
+      Object.entries(
+        source || {}
+      )
+        .forEach(
+          ([key,value])=>{
 
-        if(
-          delta === 0
-        ){
-          delta = 7;
-        }
+            if(
+              isTrulyActive(
+                value
+              )
+            ){
+              return;
+            }
 
-        return {
-          ...event,
-          delta
-        };
-      }
-    )
+            if(
+              value === false ||
+              value === null ||
+              value === undefined
+            ){
+              return;
+            }
+
+            const day =
+              parseWeekday(
+                value,
+                key
+              );
+
+            if(
+              day === null
+            ){
+              return;
+            }
+
+            let delta =
+              (
+                day -
+                today +
+                7
+              ) % 7;
+
+            if(
+              delta === 0
+            ){
+              delta = 7;
+            }
+
+            upcoming.push({
+              kind,
+              delta,
+              day,
+
+              name:
+                value?.name ||
+                eventLabelFromKey(
+                  key
+                ),
+
+              desc:
+                value?.description ||
+                (
+                  kind === 'weekly'
+                    ? 'Regelmäßiges Wochen-Event'
+                    : 'Kommendes Event'
+                )
+            });
+          }
+        );
+    };
+
+  ingest(
+    d.weekly_events,
+    'weekly'
+  );
+
+  ingest(
+    d.events,
+    'event'
+  );
+
+  return upcoming
 
     .sort(
       (a,b)=>
@@ -1163,18 +1412,16 @@ function nextWeeklyEvents(
     );
 }
 
-function dayText(
-  delta
-){
+function dayText(event){
 
   if(
-    delta === 1
+    event.delta === 1
   ){
     return 'Morgen';
   }
 
   return (
-    `In ${delta} Tagen`
+    `In ${event.delta} Tagen`
   );
 }
 
@@ -1200,15 +1447,18 @@ function renderEvents(){
       active.length
 
         ? active
+
           .map(
-            e=>`
+            event=>`
               <div class="eventCard now">
 
                 <div class="eventTitle">
 
                   <span>
-                    ${e.icon}
-                    ${esc(e.name)}
+                    ${event.icon}
+                    ${esc(
+                      event.name
+                    )}
                   </span>
 
                   <span class="eventWhen">
@@ -1218,12 +1468,15 @@ function renderEvents(){
                 </div>
 
                 <div class="eventMeta">
-                  ${esc(e.meta)}
+                  ${esc(
+                    event.meta
+                  )}
                 </div>
 
               </div>
             `
           )
+
           .join('')
 
         : (
@@ -1234,42 +1487,62 @@ function renderEvents(){
   }
 
   const upcoming =
-    nextWeeklyEvents(2);
+    collectUpcomingEvents(
+      d,
+      2
+    );
 
   if(nextEl){
 
     nextEl.innerHTML =
-      upcoming
+      upcoming.length
 
-        .map(
-          e=>`
-            <div class="eventCard next">
+        ? upcoming
 
-              <div class="eventTitle">
+          .map(
+            event=>`
+              <div class="eventCard next">
 
-                <span>
-                  ${e.icon}
-                  ${esc(e.name)}
-                </span>
+                <div class="eventTitle">
 
-                <span class="eventWhen">
-                  ${dayText(e.delta)}
-                </span>
+                  <span>
+                    📅
+                    ${esc(
+                      event.name
+                    )}
+                  </span>
+
+                  <span class="eventWhen">
+                    ${dayText(event)}
+                  </span>
+
+                </div>
+
+                <div class="eventMeta">
+
+                  ${esc(
+                    event.desc
+                  )}
+
+                  ·
+
+                  ${germanWeekday(
+                    event.day
+                  )}
+
+                </div>
 
               </div>
+            `
+          )
 
-              <div class="eventMeta">
+          .join('')
 
-                ${esc(e.desc)}
-                · aus dem regelmäßigen Wochenplan
-
-              </div>
-
-            </div>
-          `
-        )
-
-        .join('');
+        : (
+          '<div class="empty">' +
+          'Die API meldet aktuell kein eindeutig planbares nächstes Event.' +
+          '</div>'
+        );
   }
 }
 
@@ -1314,17 +1587,25 @@ function renderSkills(){
           )
 
           .map(
-            s=>`
+            skill=>`
               <span
                 class="chip ${
-                  s.active
+                  skill.active
                     ? 'active'
                     : ''
                 }"
               >
-                ${esc(s.name)}
+
+                ${esc(
+                  skill.name
+                )}
+
                 ·
-                ${fmt(s.level)}
+
+                ${fmt(
+                  skill.level
+                )}
+
               </span>
             `
           )
@@ -1368,17 +1649,17 @@ function renderSmith(){
     of map
   ){
 
-    const x =
+    const item =
       d[key];
 
-    if(!x){
+    if(!item){
       continue;
     }
 
     const expiry =
-      x.timer
+      item.timer
         ? expiresAtMs(
-            x.timer
+            item.timer
           )
         : null;
 
@@ -1405,7 +1686,9 @@ function renderSmith(){
           <div class="itemName">
             ${label}
             ·
-            Stufe ${fmt(x.level)}
+            Stufe ${fmt(
+              item.level
+            )}
           </div>
 
           <div
@@ -1418,7 +1701,7 @@ function renderSmith(){
           >
 
             ${
-              x.in_progress
+              item.in_progress
 
                 ? (
                   remaining !== null
@@ -1428,7 +1711,8 @@ function renderSmith(){
                       )
 
                     : `${fmt(
-                        x.timer?.remaining_minutes
+                        item.timer
+                          ?.remaining_minutes
                       )} Min`
                 )
 
@@ -1440,19 +1724,24 @@ function renderSmith(){
         </div>
 
         ${
-          x.next_upgrade
+          item.next_upgrade
 
             ? `
               <div class="itemMeta">
+
                 Nächste Stufe:
                 ${fmt(
-                  x.next_upgrade.level
+                  item.next_upgrade.level
                 )}
+
                 ·
+
                 ${fmt(
-                  x.next_upgrade.cost_gold
+                  item.next_upgrade.cost_gold
                 )}
+
                 🪙
+
               </div>
             `
 
@@ -1525,7 +1814,9 @@ function renderDragon(){
     <div class="itemTop">
 
       <div class="itemName">
-        Level ${fmt(d.level)}
+        Level ${fmt(
+          d.level
+        )}
       </div>
 
       <div class="timer">
@@ -1537,11 +1828,25 @@ function renderDragon(){
     </div>
 
     <div class="itemMeta">
-      XP ${fmt(d.xp)}
+
+      XP
+      ${fmt(
+        d.xp
+      )}
+
       /
-      ${fmt(d.xp_needed)}
+
+      ${fmt(
+        d.xp_needed
+      )}
+
       ·
-      Futter ${fmt(d.food)}
+
+      Futter
+      ${fmt(
+        d.food
+      )}
+
     </div>
 
     <div class="progress">
@@ -1562,10 +1867,10 @@ function renderOutpost(){
     return;
   }
 
-  const t =
+  const task =
     d.current_task;
 
-  if(!t){
+  if(!task){
 
     el.innerHTML = `
       <div class="empty">
@@ -1573,15 +1878,19 @@ function renderOutpost(){
       </div>
 
       <div class="itemMeta">
+
         Erledigt:
         ${fmt(
           d.tasks_completed
         )}
+
         ·
+
         Belohnungen offen:
         ${fmt(
           d.pending_rewards
         )}
+
       </div>
     `;
 
@@ -1589,13 +1898,17 @@ function renderOutpost(){
   }
 
   const pct =
-    t.target
+    task.target
 
       ? Math.min(
         100,
         (
-          Number(t.progress) /
-          Number(t.target)
+          Number(
+            task.progress
+          ) /
+          Number(
+            task.target
+          )
         ) * 100
       )
 
@@ -1605,17 +1918,27 @@ function renderOutpost(){
     <div class="outpostItem">
 
       <div class="itemName">
+
         ${esc(
-          t.description ||
-          t.ident ||
+          task.description ||
+          task.ident ||
           'Aufgabe'
         )}
+
       </div>
 
       <div class="itemMeta">
-        ${fmt(t.progress)}
+
+        ${fmt(
+          task.progress
+        )}
+
         /
-        ${fmt(t.target)}
+
+        ${fmt(
+          task.target
+        )}
+
       </div>
 
       <div class="progress">
@@ -1627,94 +1950,6 @@ function renderOutpost(){
 }
 
 function renderLive(){
-
-  const d =
-    state.data.live || {};
-
-  const el =
-    $('#live');
-
-  if(!el){
-    return;
-  }
-
-  const active = [];
-
-  if(
-    d.tower?.phase
-  ){
-    active.push(
-      `Turm: ${d.tower.phase}`
-    );
-  }
-
-  if(
-    d.outpost_status
-  ){
-    active.push(
-      `Außenposten: ${d.outpost_status}`
-    );
-  }
-
-  Object.entries(
-    d.weekly_events || {}
-  )
-    .forEach(
-      ([k,v])=>{
-
-        if(
-          v === true ||
-          v?.active
-        ){
-          active.push(
-            k.replaceAll(
-              '_',
-              ' '
-            )
-          );
-        }
-      }
-    );
-
-  Object.entries(
-    d.events || {}
-  )
-    .forEach(
-      ([k,v])=>{
-
-        if(
-          v === true ||
-          v?.active
-        ){
-          active.push(
-            k.replaceAll(
-              '_',
-              ' '
-            )
-          );
-        }
-      }
-    );
-
-  el.innerHTML =
-    active.length
-
-      ? active
-        .map(
-          x=>`
-            <span class="chip active">
-              ${esc(x)}
-            </span>
-          `
-        )
-        .join('')
-
-      : (
-        '<span class="empty">' +
-        'Keine besonderen Ereignisse aktiv.' +
-        '</span>'
-      );
-
   renderEvents();
 }
 
@@ -1907,6 +2142,37 @@ async function loadAll(
         errors.push(
           `${path}: ${e.message || e}`
         );
+
+        if(
+          key === 'shop'
+        ){
+
+          const shop =
+            $('#shop');
+
+          if(shop){
+
+            shop.innerHTML = `
+              <div class="empty">
+
+                Shop konnte nicht geladen werden.
+
+                <br>
+
+                ${esc(
+                  e.message ||
+                  e
+                )}
+
+              </div>
+            `;
+          }
+
+          setText(
+            '#shopCount',
+            '!'
+          );
+        }
 
         if(
           e.rateLimited
