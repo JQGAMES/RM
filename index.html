@@ -1,444 +1,711 @@
 <!doctype html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#b48a3a">
-<title>RitterManager Übersicht</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="assets/icon-192.png">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#b48a3a"
+  >
+
+  <title>RitterManager Übersicht</title>
+
+  <link
+    rel="manifest"
+    href="manifest.webmanifest"
+  >
+
+  <link
+    rel="icon"
+    href="assets/icon-192.png"
+  >
+
+  <link
+    rel="stylesheet"
+    href="styles.css"
+  >
 </head>
 
 <body>
 
-<div class="app" id="app">
+  <div
+    class="app"
+    id="app"
+  >
 
-  <div class="topbar">
+    <!-- KOPFBEREICH -->
+    <div class="topbar">
 
-    <img
-      src="assets/klausi.jpg"
-      class="avatar"
-      alt="Ritter-Profilbild"
-    >
-
-    <div class="titlewrap">
-      <h1>RitterManager</h1>
-      <div
-        class="subtitle"
-        id="season"
+      <img
+        src="assets/klausi.jpg"
+        class="avatar"
+        alt="Ritter-Profilbild"
       >
-        Persönliche Übersicht
+
+      <div class="titlewrap">
+
+        <h1>
+          RitterManager
+        </h1>
+
+        <div
+          class="subtitle"
+          id="season"
+        >
+          Persönliche Übersicht
+        </div>
+
       </div>
+
+      <button
+        class="iconbtn"
+        id="settingsBtn"
+        type="button"
+        aria-label="Einstellungen"
+      >
+        ⚙
+      </button>
+
     </div>
 
-    <button
-      class="iconbtn"
-      id="settingsBtn"
-      aria-label="Einstellungen"
-    >
-      ⚙
-    </button>
 
-  </div>
+    <!-- FEHLERMELDUNGEN -->
+    <div
+      id="errorBox"
+      class="notice error hidden"
+    ></div>
 
 
-  <div
-    id="errorBox"
-    class="notice error hidden"
-  ></div>
+    <!-- PROFIL -->
+    <section class="hero">
 
+      <div class="heroHead">
 
-  <section class="hero">
+        <div>
 
-    <div class="heroHead">
+          <div
+            class="name"
+            id="knightName"
+          >
+            Mein Ritter
+          </div>
 
-      <div>
+          <div
+            class="location"
+            id="location"
+          >
+            Noch nicht verbunden
+          </div>
 
-        <div
-          class="name"
-          id="knightName"
-        >
-          Mein Ritter
         </div>
 
-        <div
-          class="location"
-          id="location"
+        <span
+          id="online"
+          class="online offline"
         >
-          Noch nicht verbunden
+          OFFLINE
+        </span>
+
+      </div>
+
+
+      <div class="stats">
+
+        <div class="stat">
+
+          <b id="level">
+            –
+          </b>
+
+          <span>
+            LEVEL
+          </span>
+
+        </div>
+
+
+        <div class="stat">
+
+          <b id="gold">
+            –
+          </b>
+
+          <span>
+            GOLD
+          </span>
+
+        </div>
+
+
+        <div class="stat">
+
+          <b id="diamonds">
+            –
+          </b>
+
+          <span>
+            DIAMANTEN
+          </span>
+
+        </div>
+
+
+        <div class="stat">
+
+          <b id="honor">
+            –
+          </b>
+
+          <span>
+            RUHM
+          </span>
+
         </div>
 
       </div>
 
+    </section>
+
+
+    <!-- FORTSCHRITT -->
+    <div class="sectionTitle">
+
+      <h2>
+        Fortschritt
+      </h2>
+
       <span
-        id="online"
-        class="online offline"
+        class="small"
+        id="refreshState"
       >
-        OFFLINE
+        Noch nicht geladen
       </span>
 
     </div>
 
 
-    <div class="stats">
+    <div class="grid2">
 
-      <div class="stat">
-        <b id="level">–</b>
-        <span>LEVEL</span>
+      <!-- KAMPF -->
+      <div class="card">
+
+        <h3>
+          Kampf & Rang
+        </h3>
+
+        <div class="row">
+
+          <span>
+            Ranglistenplatz
+          </span>
+
+          <strong id="rank">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Schwert
+          </span>
+
+          <strong id="sword">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Rüstung
+          </span>
+
+          <strong id="armor">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Unterkunft
+          </span>
+
+          <strong id="shelter">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Abenteuer
+          </span>
+
+          <strong id="adventure">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Turm
+          </span>
+
+          <strong id="tower">
+            –
+          </strong>
+
+        </div>
+
       </div>
 
-      <div class="stat">
-        <b id="gold">–</b>
-        <span>GOLD</span>
-      </div>
 
-      <div class="stat">
-        <b id="diamonds">–</b>
-        <span>DIAMANTEN</span>
-      </div>
+      <!-- JAGD -->
+      <div class="card">
 
-      <div class="stat">
-        <b id="honor">–</b>
-        <span>RUHM</span>
+        <h3>
+          Jagd & Handwerk
+        </h3>
+
+        <div class="row">
+
+          <span>
+            Jagdlevel
+          </span>
+
+          <strong id="huntLevel">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Kills
+          </span>
+
+          <strong id="huntKills">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Jagdpunkte
+          </span>
+
+          <strong id="huntPoints">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Kochkunst
+          </span>
+
+          <strong id="cooking">
+            –
+          </strong>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Ingenieurskunst
+          </span>
+
+          <strong id="engineering">
+            –
+          </strong>
+
+        </div>
+
       </div>
 
     </div>
 
-  </section>
+
+    <!-- FÄHIGKEITEN -->
+    <div class="sectionTitle">
+
+      <h2>
+        Aktive Fähigkeiten
+      </h2>
+
+    </div>
 
 
-  <div class="sectionTitle">
+    <div class="grid2">
 
-    <h2>Fortschritt</h2>
+      <div class="card">
 
-    <span
-      class="small"
-      id="refreshState"
-    >
-      Noch nicht geladen
-    </span>
+        <h3>
+          Kampf
+        </h3>
 
-  </div>
+        <div id="combatSkills">
+
+          <div class="small">
+            Noch keine Daten
+          </div>
+
+        </div>
+
+      </div>
 
 
-  <div class="grid2">
+      <div class="card">
+
+        <h3>
+          Düsterwald
+        </h3>
+
+        <div id="huntSkills">
+
+          <div class="small">
+            Noch keine Daten
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- BUFFS -->
+    <div class="sectionTitle">
+
+      <h2>
+        Buffs, Tränke & Wirkungen
+      </h2>
+
+    </div>
+
 
     <div class="card">
 
-      <h3>Kampf & Rang</h3>
+      <div id="buffs">
 
-      <div class="row">
-        <span>Ranglistenplatz</span>
-        <strong id="rank">–</strong>
+        <div class="small">
+          Noch keine aktiven Wirkungen geladen
+        </div>
+
       </div>
 
-      <div class="row">
-        <span>Schwert</span>
-        <strong id="sword">–</strong>
-      </div>
+    </div>
 
-      <div class="row">
-        <span>Rüstung</span>
-        <strong id="armor">–</strong>
-      </div>
 
-      <div class="row">
-        <span>Unterkunft</span>
-        <strong id="shelter">–</strong>
-      </div>
+    <!-- SCHMIED -->
+    <div class="sectionTitle">
 
-      <div class="row">
-        <span>Abenteuer</span>
-        <strong id="adventure">–</strong>
-      </div>
-
-      <div class="row">
-        <span>Turm</span>
-        <strong id="tower">–</strong>
-      </div>
+      <h2>
+        Schmied
+      </h2>
 
     </div>
 
 
     <div class="card">
 
-      <h3>Jagd & Handwerk</h3>
+      <div id="smith">
 
-      <div class="row">
-        <span>Jagdlevel</span>
-        <strong id="huntLevel">–</strong>
-      </div>
+        <div class="small">
+          Noch keine Schmiededaten geladen
+        </div>
 
-      <div class="row">
-        <span>Orks/Kills</span>
-        <strong id="huntKills">–</strong>
-      </div>
-
-      <div class="row">
-        <span>Jagdpunkte</span>
-        <strong id="huntPoints">–</strong>
-      </div>
-
-      <div class="row">
-        <span>Kochkunst</span>
-        <strong id="cooking">–</strong>
-      </div>
-
-      <div class="row">
-        <span>Ingenieurskunst</span>
-        <strong id="engineering">–</strong>
       </div>
 
     </div>
 
-  </div>
 
+    <!-- DRACHE -->
+    <div class="sectionTitle">
 
-  <div class="sectionTitle">
-    <h2>Aktive Fähigkeiten</h2>
-  </div>
+      <h2>
+        Drache
+      </h2>
 
+    </div>
 
-  <div class="grid2">
 
     <div class="card">
-      <h3>Kampf</h3>
-      <div id="combatSkills"></div>
+
+      <div id="dragon">
+
+        <div class="small">
+          Noch keine Drachendaten geladen
+        </div>
+
+      </div>
+
     </div>
+
+
+    <!-- AUSSENPOSTEN -->
+    <div class="sectionTitle">
+
+      <h2>
+        Außenposten
+      </h2>
+
+    </div>
+
 
     <div class="card">
-      <h3>Düsterwald</h3>
-      <div id="huntSkills"></div>
-    </div>
 
-  </div>
+      <div id="outpost">
 
+        <div class="small">
+          Noch keine Außenpostendaten geladen
+        </div>
 
-  <div class="sectionTitle">
-    <h2>Buffs & Debuffs</h2>
-  </div>
-
-  <div class="card">
-    <div id="buffs">
-      <div class="small">
-        Für den Profiltest noch nicht geladen
       </div>
+
     </div>
-  </div>
 
 
-  <div class="sectionTitle">
-    <h2>Schmied</h2>
-  </div>
+    <!-- LIVE -->
+    <div class="sectionTitle">
 
-  <div class="card">
-    <div id="smith">
-      <div class="small">
-        Für den Profiltest noch nicht geladen
+      <h2>
+        Heute / Live
+      </h2>
+
+    </div>
+
+
+    <div class="card">
+
+      <div id="live">
+
+        <div class="small">
+          Noch keine Live-Daten geladen
+        </div>
+
       </div>
+
     </div>
-  </div>
 
 
-  <div class="sectionTitle">
-    <h2>Außenposten</h2>
-  </div>
+    <!-- SHOP -->
+    <div class="sectionTitle">
 
-  <div class="card">
-    <div id="outpost">
-      <div class="small">
-        Für den Profiltest noch nicht geladen
+      <h2>
+        Aktueller Shop
+      </h2>
+
+    </div>
+
+
+    <div class="card">
+
+      <div id="shop">
+
+        <div class="small">
+          Noch keine Shopdaten geladen
+        </div>
+
       </div>
-    </div>
-  </div>
 
-
-  <div class="sectionTitle">
-    <h2>Drache</h2>
-  </div>
-
-  <div class="card">
-    <div id="dragon">
-      <div class="small">
-        Für den Profiltest noch nicht geladen
-      </div>
-    </div>
-  </div>
-
-
-  <div class="sectionTitle">
-    <h2>Heute / Live</h2>
-  </div>
-
-  <div class="card">
-    <div id="live">
-      <div class="small">
-        Für den Profiltest noch nicht geladen
-      </div>
-    </div>
-  </div>
-
-
-  <div class="sectionTitle">
-    <h2>Aktueller Shop</h2>
-  </div>
-
-  <div class="card">
-    <div id="shop">
-      <div class="small">
-        Für den Profiltest noch nicht geladen
-      </div>
-    </div>
-  </div>
-
-</div>
-
-
-<div class="foot">
-
-  <div class="footInner">
-
-    <button
-      class="secondary"
-      id="settingsFooter"
-    >
-      Token / Einstellungen
-    </button>
-
-    <button
-      class="primary"
-      id="refreshBtn"
-    >
-      Jetzt aktualisieren
-    </button>
-
-  </div>
-
-</div>
-
-
-<div
-  class="drawer"
-  id="drawer"
->
-
-  <div class="sheet">
-
-    <h2>API verbinden</h2>
-
-    <div class="notice">
-      Worker-Adresse und Token werden ausschließlich im lokalen
-      Browser-Speicher dieses Geräts gespeichert.
-      Der Token steht nicht im GitHub-Quellcode.
-      API-Aufrufe laufen über deinen Cloudflare Worker.
     </div>
 
 
-    <label
-      class="label"
-      for="proxyInput"
-    >
-      Cloudflare Worker-Adresse
-    </label>
+    <!-- ABSTAND UNTEN -->
+    <div style="height:140px"></div>
 
-    <input
-      class="input"
-      id="proxyInput"
-      type="url"
-      inputmode="url"
-      autocomplete="off"
-      placeholder="https://dein-worker.dein-name.workers.dev"
-    >
-
-    <div
-      class="small"
-      style="margin:6px 2px 14px"
-    >
-      Nur die Basisadresse eintragen,
-      ohne <b>/v1/me</b> am Ende.
-    </div>
+  </div>
 
 
-    <label
-      class="label"
-      for="tokenInput"
-    >
-      RitterManager API-Token
-    </label>
+  <!-- FESTE UNTERE BUTTONLEISTE -->
+  <div class="foot">
 
-    <input
-      class="input"
-      id="tokenInput"
-      type="password"
-      autocomplete="off"
-      placeholder="Token hier einfügen"
-    >
-
-
-    <label
-      style="
-        display:flex;
-        gap:9px;
-        align-items:center;
-        margin:10px 2px;
-        color:#d6c7b1;
-        font-size:13px
-      "
-    >
-
-      <input
-        id="autoInput"
-        type="checkbox"
-        disabled
-      >
-
-      Auto-Refresh ist für diesen Profiltest deaktiviert
-
-    </label>
-
-
-    <div class="buttons">
-
-      <button
-        class="primary"
-        id="saveBtn"
-      >
-        Speichern & testen
-      </button>
+    <div class="footInner">
 
       <button
         class="secondary"
-        id="closeBtn"
+        id="settingsFooter"
+        type="button"
       >
-        Schließen
+        Token / Einstellungen
+      </button>
+
+
+      <button
+        class="primary"
+        id="refreshBtn"
+        type="button"
+      >
+        Jetzt aktualisieren
       </button>
 
     </div>
 
+  </div>
 
-    <button
-      class="danger"
-      id="forgetBtn"
-      style="
-        width:100%;
-        margin-top:10px
-      "
-    >
-      Token von diesem Gerät löschen
-    </button>
+
+  <!-- EINSTELLUNGEN -->
+  <div
+    class="drawer"
+    id="drawer"
+  >
+
+    <div class="sheet">
+
+      <h2>
+        API verbinden
+      </h2>
+
+
+      <div class="notice">
+
+        Worker-Adresse und Token werden ausschließlich
+        im lokalen Browser-Speicher dieses Geräts gespeichert.
+
+        Der Token steht nicht im GitHub-Quellcode.
+
+        API-Aufrufe laufen über deinen Cloudflare Worker.
+
+      </div>
+
+
+      <label
+        class="label"
+        for="proxyInput"
+      >
+        Cloudflare Worker-Adresse
+      </label>
+
+
+      <input
+        class="input"
+        id="proxyInput"
+        type="url"
+        inputmode="url"
+        autocomplete="off"
+        placeholder="https://dein-worker.workers.dev"
+      >
+
+
+      <div
+        class="small"
+        style="margin:6px 2px 14px"
+      >
+        Nur die Basisadresse eintragen,
+        ohne <b>/v1/me</b> am Ende.
+      </div>
+
+
+      <label
+        class="label"
+        for="tokenInput"
+      >
+        RitterManager API-Token
+      </label>
+
+
+      <input
+        class="input"
+        id="tokenInput"
+        type="password"
+        autocomplete="off"
+        placeholder="Token hier einfügen"
+      >
+
+
+      <label
+        style="
+          display:flex;
+          gap:9px;
+          align-items:center;
+          margin:14px 2px;
+          color:#d6c7b1;
+          font-size:13px
+        "
+      >
+
+        <input
+          id="autoInput"
+          type="checkbox"
+        >
+
+        automatisch jede Minute aktualisieren
+
+      </label>
+
+
+      <div class="buttons">
+
+        <button
+          class="primary"
+          id="saveBtn"
+          type="button"
+        >
+          Speichern & verbinden
+        </button>
+
+
+        <button
+          class="secondary"
+          id="closeBtn"
+          type="button"
+        >
+          Schließen
+        </button>
+
+      </div>
+
+
+      <button
+        class="danger"
+        id="forgetBtn"
+        type="button"
+        style="
+          width:100%;
+          margin-top:10px
+        "
+      >
+        Token von diesem Gerät löschen
+      </button>
+
+    </div>
 
   </div>
 
-</div>
 
-
-<!--
-WICHTIG:
-Neue eindeutige Versionsnummer,
-damit Chrome nicht die alte app.js verwendet.
--->
-<script src="app.js?v=profiltest2057"></script>
+  <!--
+    NEUE VERSIONSNUMMER:
+    Dadurch wird garantiert die neue app.js geladen.
+  -->
+  <script src="app.js?v=full-2105"></script>
 
 </body>
 </html>
