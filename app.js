@@ -1,34 +1,163 @@
-const $ = (s) => document.querySelector(s);
+const $ =
+  s =>
+    document.querySelector(s);
 
-const state = {
+const $$ =
+  s =>
+    [
+      ...document.querySelectorAll(s)
+    ];
+
+
+const S = {
+
   data: {},
+
   busy: false,
-  timer: null,
-  countdownTimer: null,
+
+  page: 0,
+
   blockedUntil: 0,
+
+  autoTimer: null,
+
+  countTimer: null,
+
   installPrompt: null
+
 };
 
-const AUTO_REFRESH_MS = 60000;
-const BETWEEN_REQUESTS_MS = 300;
-const MANUAL_COOLDOWN_MS = 8000;
 
-let lastManualRefresh = 0;
+const AUTO =
+  60000;
+
+const WAIT =
+  220;
+
+const MANUAL =
+  7000;
+
+let lastManual =
+  0;
 
 
 /*
-  Offizieller regelmäßiger Wochenplan
-  aus der Knight-Manager-API-Dokumentation.
+  API-Bereiche
 */
 
-const WEEKLY_EVENTS = [
+const ENDPOINTS = [
+
+  [
+    'profile',
+    '/v1/me'
+  ],
+
+  [
+    'stats',
+    '/v1/me/stats'
+  ],
+
+  [
+    'buffs',
+    '/v1/me/buffs'
+  ],
+
+  [
+    'shop',
+    '/v1/game/shop'
+  ],
+
+  [
+    'season',
+    '/v1/game/season'
+  ],
+
+  [
+    'live',
+    '/v1/game/live'
+  ],
+
+  [
+    'blacksmith',
+    '/v1/me/blacksmith'
+  ],
+
+  [
+    'dragon',
+    '/v1/me/dragon'
+  ],
+
+  [
+    'outpost',
+    '/v1/me/outpost'
+  ],
+
+  [
+    'skills',
+    '/v1/me/skills?desc=1'
+  ],
+
+  [
+    'tournaments',
+    '/v1/me/tournaments'
+  ],
+
+  [
+    'backpack',
+    '/v1/me/backpack?desc=1'
+  ],
+
+  [
+    'forest',
+    '/v1/game/forest'
+  ],
+
+  [
+    'province',
+    '/v1/game/province'
+  ],
+
+  [
+    'party',
+    '/v1/me/party'
+  ],
+
+  [
+    'dungeons',
+    '/v1/me/dungeons'
+  ],
+
+  [
+    'order',
+    '/v1/me/order'
+  ],
+
+  [
+    'lifetime',
+    '/v1/me/lifetime'
+  ],
+
+  [
+    'bestiary',
+    '/v1/me/bestiary'
+  ]
+
+];
+
+
+/*
+  Deutscher Wochenplan
+*/
+
+const WEEK = [
 
   {
     day: 1,
     key: 'hunting_monday',
     icon: '🏹',
     name: 'Jagd-Montag',
-    desc: 'Garantiertes Jagdturnier jede Stunde + doppelter Preispool.'
+    desc:
+      'Garantierte Jagdturniere jede Stunde und doppelter Preispool.'
   },
 
   {
@@ -36,73 +165,452 @@ const WEEKLY_EVENTS = [
     key: 'funfair',
     icon: '🎪',
     name: 'Jahrmarkt',
-    desc: 'Glücksrad mit Gegenstands-Preisen.'
+    desc:
+      'Glücksrad mit Gegenstands-Preisen.'
   },
 
   {
     day: 3,
     key: 'combat_division',
     icon: '🛡️',
-    name: 'Kampfklassen-Auswertung',
-    desc: 'Mittwoch um 12:01 CET.'
+    name:
+      'Kampfklassen-Auswertung',
+    desc:
+      'Mittwoch um 12:01 Uhr.'
   },
 
   {
     day: 3,
-    key: 'combat_tournament_wednesday',
+    key:
+      'combat_tournament_wednesday',
     icon: '⚔️',
-    name: 'Kampfturnier-Mittwoch',
-    desc: 'Garantiertes Kampfturnier jede Stunde + doppelter Preispool.'
+    name:
+      'Kampfturnier-Mittwoch',
+    desc:
+      'Garantierte Kampfturniere jede Stunde und doppelter Preispool.'
   },
 
   {
     day: 4,
-    key: 'double_thursday',
+    key:
+      'double_thursday',
     icon: '🏆',
-    name: 'Doppel-Ruhm',
-    desc: 'Doppelter Ruhm aus Kämpfen.'
+    name:
+      'Doppelter Ruhm',
+    desc:
+      'Doppelter Ruhm aus Kämpfen.'
   },
 
   {
     day: 5,
-    key: 'knight_games',
+    key:
+      'knight_games',
     icon: '🏰',
-    name: 'Ritterspiele – Registrierung',
-    desc: 'Freitag: Registrierung.'
+    name:
+      'Ritterspiele – Registrierung',
+    desc:
+      'Freitag: Anmeldung zu den Ritterspielen.'
   },
 
   {
     day: 6,
-    key: 'knight_games',
+    key:
+      'knight_games',
     icon: '⚔️',
-    name: 'Ritterspiele – Kämpfe',
-    desc: 'Samstag: Kämpfe.'
+    name:
+      'Ritterspiele – Kämpfe',
+    desc:
+      'Samstag: Kämpfe für den Orden.'
   },
 
   {
     day: 0,
-    key: 'knight_games',
+    key:
+      'knight_games',
     icon: '👑',
-    name: 'Ritterspiele – Siegerehrung',
-    desc: 'Sonntag: Siegerehrung und Belohnungen.'
+    name:
+      'Ritterspiele – Siegerehrung',
+    desc:
+      'Sonntag: Auswertung und Belohnungen.'
   }
 
 ];
 
 
+/*
+  Deutsche Begriffe
+*/
+
+const TR = {
+
+  active:
+    'aktiv',
+
+  inactive:
+    'inaktiv',
+
+  running:
+    'läuft',
+
+  closed:
+    'geschlossen',
+
+  open:
+    'offen',
+
+  rewards:
+    'Belohnungen',
+
+  registration:
+    'Registrierung',
+
+  fighting:
+    'Kämpfe',
+
+  ceremony:
+    'Siegerehrung',
+
+  away:
+    'nicht anwesend',
+
+  attack:
+    'Angriff',
+
+  hurt:
+    'besiegt',
+
+  egg:
+    'Ei',
+
+  baby:
+    'Babydrache',
+
+  kid:
+    'Jungdrache',
+
+  adult:
+    'Erwachsener Drache',
+
+  idle:
+    'wartet',
+
+  normal:
+    'Normal',
+
+  heroic:
+    'Heroisch',
+
+  legendary:
+    'Legendär',
+
+  most_kills:
+    'Meiste Abschüsse',
+
+  most_variety:
+    'Größte Vielfalt',
+
+  most_orc_types:
+    'Meiste Ork-Arten',
+
+  most_wins:
+    'Meiste Siege',
+
+  most_damage:
+    'Meister Schaden'
+
+};
+
+
+const EFFECT = {
+
+  aim:
+    'Zielgenauigkeit',
+
+  all_hunt:
+    'Jagdmeister',
+
+  breakthrough:
+    'Durchschlagskraft',
+
+  fix_hp:
+    'Lebenskraft',
+
+  forest_xp:
+    'Walderfahrung',
+
+  hunting_skills:
+    'Jagdinstinkt',
+
+  ice:
+    'Frostschutz',
+
+  loot_bonus:
+    'Beutebonus',
+
+  marks:
+    'Spurenleser',
+
+  max_hp:
+    'Lebensboost',
+
+  str:
+    'Stärkeboost',
+
+  threat:
+    'Bedrohung',
+
+  forest_curse:
+    'Fluch des Orkkönigs',
+
+  toxic:
+    'Vergiftet'
+
+};
+
+
+const EVENT_NAMES = {
+
+  hunting_monday:
+    'Jagd-Montag',
+
+  funfair:
+    'Jahrmarkt',
+
+  combat_division:
+    'Kampfklassen-Auswertung',
+
+  combat_tournament_wednesday:
+    'Kampfturnier-Mittwoch',
+
+  double_thursday:
+    'Doppelter Ruhm',
+
+  knight_games:
+    'Ritterspiele',
+
+  castle_garden:
+    'Schlossgarten',
+
+  halloween:
+    'Halloween',
+
+  kings_tournament:
+    'Königsturnier',
+
+  joust_tournament:
+    'Lanzenturnier',
+
+  trading_event:
+    'Handels-Event',
+
+  cookie:
+    'Keks-Event'
+
+};
+
+
+const CATEGORY_DE = {
+
+  Potions:
+    'Tränke',
+
+  Equipment:
+    'Ausrüstung',
+
+  Food:
+    'Nahrung',
+
+  Consumables:
+    'Verbrauchbar',
+
+  Crafting:
+    'Handwerkswaren',
+
+  Misc:
+    'Sonstiges'
+
+};
+
+
+/*
+  Häufige Gegenstände:
+  englische API-Bezeichnungen
+  werden deutsch dargestellt.
+*/
+
+const ITEM_DE = {
+
+  'health potion':
+    'Heiltrank',
+
+  'strength potion':
+    'Stärketrank',
+
+  'silver arrows':
+    'Silberpfeile',
+
+  'silver arrow':
+    'Silberpfeil',
+
+  'healing herbs':
+    'Heilkräuter',
+
+  'healing herb':
+    'Heilkraut',
+
+  'throwing axes':
+    'Wurfäxte',
+
+  'throwing axe':
+    'Wurfaxt',
+
+  'wolf bait':
+    'Wolfsköder',
+
+  'apple':
+    'Apfel',
+
+  'blackberries':
+    'Brombeeren',
+
+  'raspberries':
+    'Himbeeren',
+
+  'honeycomb':
+    'Honigwabe',
+
+  'carrots':
+    'Möhren',
+
+  'orc meat':
+    'Ork-Fleisch',
+
+  'wild boar meat':
+    'Wildschwein-Fleisch',
+
+  'forest mushrooms':
+    'Waldpilze',
+
+  'small meals':
+    'Kleine Mahlzeiten',
+
+  'shadow dust':
+    'Schattenstaub',
+
+  'silver bars':
+    'Silberbarren',
+
+  'silver bar':
+    'Silberbarren',
+
+  'thorium shard':
+    'Thorium-Splitter',
+
+  'thorium shards':
+    'Thorium-Splitter',
+
+  'royal medal':
+    'Königliche Medaille',
+
+  'province coins':
+    'Provinzmünzen',
+
+  'free tickets':
+    'Freilose',
+
+  'slime bags':
+    'Schleimbeutel',
+
+  'slime bag':
+    'Schleimbeutel'
+
+};
+
+
+const SKILL_DE = {
+
+  Fireball:
+    'Feuerball',
+
+  'Shield Wall':
+    'Schildwall',
+
+  'Quick Shot':
+    'Schnellschuss',
+
+  Bandage:
+    'Verband',
+
+  'Mirror Image':
+    'Spiegelbild',
+
+  'Magic Shield':
+    'Magisches Schild',
+
+  'Multiple Shot':
+    'Mehrfachschuss'
+
+};
+
+
+function itemName(x){
+
+  const raw =
+    x?.name_de ||
+    x?.name ||
+    x?.ident ||
+    '';
+
+  return (
+    ITEM_DE[
+      String(raw)
+        .toLowerCase()
+    ]
+    ||
+    raw
+  );
+
+}
+
+
+function skillName(x){
+
+  return (
+    x?.name_de
+    ||
+    SKILL_DE[
+      x?.name
+    ]
+    ||
+    x?.name
+    ||
+    x?.ident
+    ||
+    ''
+  );
+
+}
+
+
+/*
+  Hilfsfunktionen
+*/
+
 function esc(v){
 
-  return String(v ?? '')
-    .replace(
-      /[&<>"']/g,
-      m => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      }[m])
-    );
+  return String(
+    v ?? ''
+  )
+  .replace(
+    /[&<>"']/g,
+    m => ({
+      '&':'&amp;',
+      '<':'&lt;',
+      '>':'&gt;',
+      '"':'&quot;',
+      "'":'&#39;'
+    }[m])
+  );
 
 }
 
@@ -117,31 +625,47 @@ function fmt(v){
     return '–';
   }
 
-  if(
-    typeof v === 'number'
-  ){
-    return new Intl.NumberFormat(
-      'de-DE'
-    ).format(v);
-  }
+  return (
+    typeof v ===
+    'number'
 
-  return String(v);
+      ? new Intl
+          .NumberFormat(
+            'de-DE'
+          )
+          .format(v)
+
+      : String(v)
+  );
 
 }
 
 
-function setText(
-  selector,
-  value
-){
+function de(v){
 
-  const el =
-    $(selector);
+  return (
+    TR[
+      String(
+        v ?? ''
+      )
+      .toLowerCase()
+    ]
+    ||
+    String(
+      v ?? ''
+    )
+  );
 
-  if(el){
-    el.textContent =
-      value ?? '–';
-  }
+}
+
+
+function val(...values){
+
+  return values.find(
+    value =>
+      value !== undefined &&
+      value !== null
+  );
 
 }
 
@@ -149,36 +673,44 @@ function setText(
 function token(){
 
   return (
-    localStorage.getItem(
-      'rm_token'
-    ) || ''
+    localStorage
+      .getItem(
+        'rm_token'
+      )
+    ||
+    ''
   ).trim();
 
 }
 
 
-function proxyUrl(){
+function proxy(){
 
   return (
-    localStorage.getItem(
-      'rm_proxy'
-    ) || ''
+    localStorage
+      .getItem(
+        'rm_proxy'
+      )
+    ||
+    ''
   )
-    .trim()
-    .replace(
-      /\/+$/,
-      ''
-    );
+  .trim()
+  .replace(
+    /\/+$/,
+    ''
+  );
 
 }
 
 
-function autoRefresh(){
+function auto(){
 
   return (
-    localStorage.getItem(
-      'rm_auto'
-    ) !== '0'
+    localStorage
+      .getItem(
+        'rm_auto'
+      )
+    !== '0'
   );
 
 }
@@ -197,30 +729,21 @@ function sleep(ms){
 }
 
 
-/*
-  Knight-Manager liefert echte Antworten
-  teilweise als:
-
-  {
-    success: true,
-    data: { ... }
-  }
-*/
-
 function unwrap(body){
 
   if(
     body &&
-    typeof body === 'object' &&
+    typeof body ===
+      'object' &&
     body.success === true &&
-    Object.prototype.hasOwnProperty.call(
-      body,
-      'data'
-    )
+    Object.prototype
+      .hasOwnProperty
+      .call(
+        body,
+        'data'
+      )
   ){
-
     return body.data;
-
   }
 
   return body;
@@ -228,145 +751,64 @@ function unwrap(body){
 }
 
 
-function showError(text){
-
-  const box =
-    $('#errorBox');
-
-  if(!box){
-    return;
-  }
-
-  box.textContent =
-    text;
-
-  box.classList.remove(
-    'hidden'
-  );
-
-}
-
-
-function hideError(){
-
-  $('#errorBox')
-    ?.classList
-    .add(
-      'hidden'
-    );
-
-}
-
-
-function parseRetrySeconds(text){
-
-  const match =
-    String(text || '')
-      .match(
-        /try again in\s+(\d+)\s+seconds?/i
-      );
-
-  return match
-    ? Number(match[1])
-    : null;
-
-}
-
+/*
+  API
+*/
 
 async function api(path){
 
   if(
     Date.now() <
-    state.blockedUntil
+    S.blockedUntil
   ){
 
-    const seconds =
-      Math.ceil(
-        (
-          state.blockedUntil -
-          Date.now()
-        ) / 1000
-      );
-
-    const error =
+    throw Object.assign(
       new Error(
-        `Rate-Limit-Pause: noch ${seconds} Sekunden.`
-      );
-
-    error.rateLimited =
-      true;
-
-    throw error;
-
-  }
-
-
-  if(!token()){
-
-    throw new Error(
-      'Kein API-Token gespeichert.'
+        'API-Pause aktiv.'
+      ),
+      {
+        rate:true
+      }
     );
 
   }
 
 
-  if(!proxyUrl()){
+  if(
+    !token() ||
+    !proxy()
+  ){
 
     throw new Error(
-      'Keine Cloudflare-Worker-Adresse gespeichert.'
+      'API-Zugang fehlt.'
     );
 
   }
 
 
-  let response;
+  const response =
+    await fetch(
+      proxy() + path,
+      {
+        headers:{
+          Authorization:
+            `Bearer ${token()}`,
 
+          Accept:
+            'application/json'
+        },
 
-  try{
-
-    response =
-      await fetch(
-
-        proxyUrl() + path,
-
-        {
-          method: 'GET',
-
-          headers: {
-
-            'Authorization':
-              `Bearer ${token()}`,
-
-            'Accept':
-              'application/json'
-
-          },
-
-          cache:
-            'no-store'
-
-        }
-
-      );
-
-  }catch(error){
-
-    throw new Error(
-      `Worker nicht erreichbar: ${
-        error?.message ||
-        error
-      }`
+        cache:
+          'no-store'
+      }
     );
-
-  }
 
 
   const raw =
     await response.text();
 
 
-  let body =
-    null;
+  let body;
 
 
   try{
@@ -376,44 +818,47 @@ async function api(path){
         ? JSON.parse(raw)
         : null;
 
-  }catch{}
+  }catch{
+
+    body =
+      null;
+
+  }
 
 
-  if(!response.ok){
-
-    const detail =
-      body?.error ||
-      body?.message ||
-      raw ||
-      'keine Servermeldung';
-
+  if(
+    !response.ok
+  ){
 
     if(
-      response.status === 429
+      response.status ===
+      429
     ){
 
-      const retry =
-        parseRetrySeconds(
-          detail
-        ) ?? 60;
-
-
-      state.blockedUntil =
-        Date.now() +
-        retry * 1000;
-
-
-      const error =
-        new Error(
-          `HTTP 429 – ${detail}`
+      const match =
+        raw.match(
+          /(\d+)\s*seconds?/i
         );
 
 
-      error.rateLimited =
-        true;
+      S.blockedUntil =
+        Date.now()
+        +
+        Number(
+          match?.[1] ||
+          60
+        )
+        * 1000;
 
 
-      throw error;
+      throw Object.assign(
+        new Error(
+          'API-Limit erreicht.'
+        ),
+        {
+          rate:true
+        }
+      );
 
     }
 
@@ -421,21 +866,7 @@ async function api(path){
     throw new Error(
       `${path}: HTTP ${
         response.status
-      } – ${
-        detail
       }`
-    );
-
-  }
-
-
-  if(
-    !body ||
-    typeof body !== 'object'
-  ){
-
-    throw new Error(
-      `${path}: ungültige JSON-Antwort.`
     );
 
   }
@@ -448,20 +879,18 @@ async function api(path){
 }
 
 
-/* =========================
-   COUNTDOWNS
-========================= */
+/*
+  Countdown
+*/
 
-function countdownText(
-  totalSeconds
-){
+function t(seconds){
 
-  const seconds =
+  seconds =
     Math.max(
       0,
       Math.ceil(
         Number(
-          totalSeconds
+          seconds
         ) || 0
       )
     );
@@ -485,9 +914,7 @@ function countdownText(
     seconds % 60;
 
 
-  if(
-    hours > 0
-  ){
+  if(hours){
 
     return (
       `${hours}:` +
@@ -506,24 +933,16 @@ function countdownText(
 }
 
 
-function expiresAtMs(obj){
-
-  if(
-    !obj ||
-    typeof obj !== 'object'
-  ){
-    return null;
-  }
-
+function expiry(obj){
 
   const absolute =
-    obj.expires_at ??
-    obj.finishes_at;
+    obj?.expires_at
+    ??
+    obj?.finishes_at;
 
 
   if(
-    absolute !== undefined &&
-    absolute !== null
+    absolute != null
   ){
 
     const number =
@@ -564,40 +983,38 @@ function expiresAtMs(obj){
   }
 
 
+  const date =
+    Date.parse(
+      obj?.expires_datetime
+      ||
+      ''
+    );
+
+
   if(
-    obj.expires_datetime
+    Number.isFinite(
+      date
+    )
   ){
-
-    const parsed =
-      Date.parse(
-        obj.expires_datetime
-      );
-
-
-    if(
-      Number.isFinite(
-        parsed
-      )
-    ){
-      return parsed;
-    }
-
+    return date;
   }
 
 
   if(
     Number.isFinite(
       Number(
-        obj.remaining_seconds
+        obj?.remaining_seconds
       )
     )
   ){
 
     return (
-      Date.now() +
+      Date.now()
+      +
       Number(
         obj.remaining_seconds
-      ) * 1000
+      )
+      * 1000
     );
 
   }
@@ -606,16 +1023,18 @@ function expiresAtMs(obj){
   if(
     Number.isFinite(
       Number(
-        obj.remaining_minutes
+        obj?.remaining_minutes
       )
     )
   ){
 
     return (
-      Date.now() +
+      Date.now()
+      +
       Number(
         obj.remaining_minutes
-      ) * 60000
+      )
+      * 60000
     );
 
   }
@@ -626,641 +1045,474 @@ function expiresAtMs(obj){
 }
 
 
-/* =========================
-   PROFIL
-========================= */
+/*
+  HTML-Helfer
+*/
 
-function renderProfile(){
+function progress(value){
 
-  const profile =
-    state.data.profile || {};
-
-
-  setText(
-    '#knightName',
-    profile.name ||
-    'Mein Ritter'
-  );
-
-
-  setText(
-    '#level',
-    fmt(
-      profile.level
-    )
-  );
-
-
-  setText(
-    '#gold',
-    fmt(
-      profile
-        .currencies
-        ?.gold
-    )
-  );
-
-
-  setText(
-    '#diamonds',
-    fmt(
-      profile
-        .currencies
-        ?.diamonds
-    )
-  );
-
-
-  setText(
-    '#honor',
-    fmt(
-      profile
-        .ranking
-        ?.honor
-    )
-  );
-
-
-  setText(
-    '#rank',
-    fmt(
-      profile
-        .ranking
-        ?.position
-      ??
-      profile
-        .rank
-        ?.number
-    )
-  );
-
-
-  setText(
-    '#sword',
-    fmt(
-      profile
-        .upgrades
-        ?.sword
-    )
-  );
-
-
-  setText(
-    '#armor',
-    fmt(
-      profile
-        .upgrades
-        ?.armor
-    )
-  );
-
-
-  setText(
-    '#shelter',
-    fmt(
-      profile
-        .upgrades
-        ?.shelter
-    )
-  );
-
-
-  setText(
-    '#adventure',
-    fmt(
-      profile
-        .progress
-        ?.adventure
-    )
-  );
-
-
-  setText(
-    '#tower',
-    fmt(
-      profile
-        .progress
-        ?.tower
-    )
-  );
-
-
-  setText(
-    '#huntLevel',
-    fmt(
-      profile
-        .hunting
-        ?.level
-    )
-  );
-
-
-  setText(
-    '#huntKills',
-    fmt(
-      profile
-        .hunting
-        ?.kills
-    )
-  );
-
-
-  setText(
-    '#huntPoints',
-    fmt(
-      profile
-        .hunting
-        ?.points
-    )
-  );
-
-
-  setText(
-    '#cooking',
-    fmt(
-      profile
-        .crafting
-        ?.cooking
-    )
-  );
-
-
-  setText(
-    '#engineering',
-    fmt(
-      profile
-        .crafting
-        ?.engineering
-    )
-  );
-
-
-  const titleParts =
-    [];
-
-
-  if(
-    profile.rank?.title
-  ){
-
-    titleParts.push(
-      profile.rank.title
-    );
-
-  }
-
-
-  if(
-    profile.title
-  ){
-
-    titleParts.push(
-      profile.title
-    );
-
-  }
-
-
-  if(
-    profile
-      .ranking
-      ?.division !==
-      undefined
-  ){
-
-    titleParts.push(
-      `Division ${
-        profile
-          .ranking
-          .division
-      }`
-    );
-
-  }
-
-
-  setText(
-    '#rankTitle',
-    titleParts.join(
-      ' · '
-    ) ||
-    'Ritterprofil'
-  );
-
-
-  setText(
-
-    '#location',
-
-    profile.status?.location
-
-      ? (
-        `📍 ${
-          profile.status.location
-        }`
+  value =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        Number(value) || 0
       )
-
-      : (
-        profile.status?.mode === 0
-
-          ? '📍 Unterwegs'
-
-          : 'Standort unbekannt'
-      )
-
-  );
+    );
 
 
-  const online =
-    $('#online');
-
-
-  if(online){
-
-    online.textContent =
-      profile.status?.online
-        ? 'ONLINE'
-        : 'OFFLINE';
-
-
-    online.className =
-      profile.status?.online
-        ? 'online'
-        : 'online offline';
-
-  }
+  return `
+    <div class="progress">
+      <i
+        style="width:${value}%"
+      ></i>
+    </div>
+  `;
 
 }
 
 
-/* =========================
-   SAISON
-========================= */
-
-function renderSeason(){
-
-  const season =
-    state.data.season || {};
-
-
-  setText(
-
-    '#season',
-
-    season.season !==
-    undefined
-
-      ? (
-        `Saison ${
-          season.season
-        } · Tag ${
-          season.day
-        }${
-          season.paused
-            ? ' · pausiert'
-            : ''
-        }`
-      )
-
-      : 'Persönliche Übersicht'
-
-  );
-
-}
-
-
-/* =========================
-   BUFFS
-========================= */
-
-function effectIcon(
-  type,
-  debuff
+function row(
+  title,
+  value,
+  meta = '',
+  icon = ''
 ){
 
-  if(debuff){
-    return '☠️';
-  }
+  return `
+    <div class="row">
 
+      <div class="rowMain">
 
-  const icons = {
+        <div class="rowTitle">
 
-    aim:
-      '🎯',
+          ${
+            icon
+              ? icon + ' '
+              : ''
+          }
 
-    all_hunt:
-      '🏹',
+          ${esc(title)}
 
-    breakthrough:
-      '💥',
+        </div>
 
-    fix_hp:
-      '❤️',
+        ${
+          meta
+            ? `
+              <div class="rowMeta">
+                ${esc(meta)}
+              </div>
+            `
+            : ''
+        }
 
-    forest_xp:
-      '🌲',
+      </div>
 
-    hunting_skills:
-      '🦌',
+      <div class="value">
+        ${esc(fmt(value))}
+      </div>
 
-    ice:
-      '❄️',
-
-    loot_bonus:
-      '🎁',
-
-    marks:
-      '🐾',
-
-    max_hp:
-      '💚',
-
-    str:
-      '💪',
-
-    threat:
-      '⚠️',
-
-    toxic:
-      '☠️',
-
-    forest_curse:
-      '☠️'
-
-  };
-
-
-  return (
-    icons[type] ||
-    '✨'
-  );
+    </div>
+  `;
 
 }
 
 
-function renderBuffs(){
+/*
+  PROFIL / START
+*/
+
+function hero(){
+
+  const p =
+    S.data.profile || {};
+
+  const ranking =
+    p.ranking || {};
+
+  const rank =
+    p.rank || {};
+
+  const currencies =
+    p.currencies || {};
+
+  const combat =
+    p.combat || {};
+
+
+  const energy =
+    val(
+      p.energy?.current,
+      p.energy,
+      p.resources?.energy
+    );
+
+
+  const servants =
+    val(
+      currencies.servants,
+      p.servants,
+      p.resources?.servants
+    );
+
+
+  const arrows =
+    val(
+      currencies.arrow_makers,
+      p.arrow_makers,
+      p.resources?.arrow_makers
+    );
+
+
+  return `
+    <div class="card hero">
+
+      <div class="heroTop">
+
+        <div>
+
+          <div class="name">
+            ${esc(
+              p.name ||
+              'Mein Ritter'
+            )}
+          </div>
+
+          <div class="rankline">
+
+            ${esc(
+              [
+                rank.title,
+                p.title,
+                ranking.division != null
+                  ? `Division ${ranking.division}`
+                  : ''
+              ]
+              .filter(Boolean)
+              .join(' · ')
+            )}
+
+          </div>
+
+          <div class="muted tiny">
+
+            📍 ${
+              esc(
+                p.status?.location ||
+                'Unterwegs'
+              )
+            }
+
+          </div>
+
+        </div>
+
+        <span
+          class="online ${
+            p.status?.online
+              ? ''
+              : 'offline'
+          }"
+        >
+
+          ${
+            p.status?.online
+              ? 'ONLINE'
+              : 'OFFLINE'
+          }
+
+        </span>
+
+      </div>
+
+
+      <div class="stats4">
+
+        <div class="tile">
+          <span class="emoji">⚔️</span>
+          <b>${fmt(p.level)}</b>
+          <span>Level</span>
+        </div>
+
+        <div class="tile">
+          <span class="emoji">🪙</span>
+          <b>${fmt(currencies.gold)}</b>
+          <span>Gold</span>
+        </div>
+
+        <div class="tile">
+          <span class="emoji">💎</span>
+          <b>${fmt(currencies.diamonds)}</b>
+          <span>Diamanten</span>
+        </div>
+
+        <div class="tile">
+          <span class="emoji">🏆</span>
+          <b>${fmt(ranking.honor)}</b>
+          <span>Ruhm</span>
+        </div>
+
+        ${
+          energy != null
+            ? `
+              <div class="tile">
+                <span class="emoji">⚡</span>
+                <b>${fmt(energy)}</b>
+                <span>Energie</span>
+              </div>
+            `
+            : ''
+        }
+
+        ${
+          servants != null
+            ? `
+              <div class="tile">
+                <span class="emoji">🧑‍🌾</span>
+                <b>${fmt(servants)}</b>
+                <span>Leibeigene</span>
+              </div>
+            `
+            : ''
+        }
+
+        ${
+          arrows != null
+            ? `
+              <div class="tile">
+                <span class="emoji">🎯</span>
+                <b>${fmt(arrows)}</b>
+                <span>Pfeilmacher</span>
+              </div>
+            `
+            : ''
+        }
+
+        ${
+          combat.hp?.total != null
+            ? `
+              <div class="tile">
+                <span class="emoji">❤️</span>
+                <b>${fmt(combat.hp.total)}</b>
+                <span>Lebenspunkte</span>
+              </div>
+            `
+            : ''
+        }
+
+      </div>
+
+    </div>
+  `;
+
+}
+
+
+/*
+  BUFFS
+*/
+
+function buffs(){
 
   const data =
-    state.data.buffs || {};
+    S.data.buffs || {};
 
 
-  const container =
-    $('#buffs');
-
-
-  if(!container){
-    return;
-  }
-
-
-  const effects = [
+  const all = [
 
     ...(
-      Array.isArray(
-        data.buffs
-      )
-
-        ? data.buffs.map(
-          effect => ({
-            ...effect,
-            debuff: false
-          })
-        )
-
-        : []
+      data.buffs ||
+      []
+    )
+    .map(
+      item => ({
+        ...item,
+        bad:false
+      })
     ),
 
     ...(
-      Array.isArray(
-        data.debuffs
-      )
-
-        ? data.debuffs.map(
-          effect => ({
-            ...effect,
-            debuff: true
-          })
-        )
-
-        : []
+      data.debuffs ||
+      []
+    )
+    .map(
+      item => ({
+        ...item,
+        bad:true
+      })
     )
 
   ];
 
 
-  setText(
-    '#buffCount',
-    effects.length
-  );
+  return `
+    <div class="panel priority">
 
+      <div class="panelHead">
 
-  if(
-    effects.length === 0
-  ){
+        <div>
 
-    container.innerHTML =
-      '<div class="empty">Keine aktiven Buffs oder Debuffs.</div>';
+          <div class="eyebrow">
+            AKTUELLER BUFF
+          </div>
 
-    return;
+          <h2>
+            ⏱️ Aktive Wirkungen
+          </h2>
 
-  }
+        </div>
 
+        <span class="badge">
+          ${all.length}
+        </span>
 
-  effects.sort(
-    (
-      a,
-      b
-    ) =>
-      (
-        expiresAtMs(a) ||
-        Infinity
-      )
-      -
-      (
-        expiresAtMs(b) ||
-        Infinity
-      )
-  );
+      </div>
 
+      ${
+        all.length
 
-  container.innerHTML =
-    effects.map(
-
-      effect => {
-
-        const expiry =
-          expiresAtMs(
-            effect
-          );
-
-
-        const remaining =
-          expiry
-
-            ? Math.max(
-              0,
-              Math.ceil(
-                (
-                  expiry -
-                  Date.now()
-                ) / 1000
-              )
-            )
-
-            : null;
-
-
-        const source =
-          effect
-            .source_item
-            ?.name
-
-            ? (
-              `Quelle: ${
-                esc(
-                  effect
-                    .source_item
-                    .name
-                )
-              }`
-            )
-
-            : '';
-
-
-        const value =
-          effect.value !==
-          undefined
-
-            ? (
-              `Wert: ${
-                fmt(
-                  effect.value
-                )
-              }`
-            )
-
-            : '';
-
-
-        return `
-          <div class="effectItem">
-
-            <div class="effectTop">
-
-              <div class="effectName">
-
-                ${effectIcon(
-                  effect.type,
-                  effect.debuff
-                )}
-
-                ${esc(
-                  effect.name ||
-                  effect.type ||
-                  'Wirkung'
-                )}
-
-              </div>
-
-
-              <div
-                class="timer"
-                ${
-                  expiry
-                    ? `data-expires-at="${expiry}"`
-                    : ''
-                }
-              >
-
-                ${
-                  remaining !== null
-                    ? countdownText(
-                        remaining
-                      )
-                    : '–'
-                }
-
-              </div>
-
-            </div>
-
-
-            <div class="effectDesc">
-
-              ${esc(
-                effect.description ||
-                ''
-              )}
+          ? `
+            <div class="list">
 
               ${
-                value ||
-                source
+                all
+                .sort(
+                  (a,b) =>
+                    (
+                      expiry(a) ||
+                      Infinity
+                    )
+                    -
+                    (
+                      expiry(b) ||
+                      Infinity
+                    )
+                )
+                .map(
+                  item => {
 
-                  ? `<br>${
-                      [
-                        value,
-                        source
-                      ]
-                      .filter(
-                        Boolean
-                      )
-                      .join(
-                        ' · '
-                      )
-                    }`
+                    const end =
+                      expiry(item);
 
-                  : ''
+                    return `
+                      <div class="row">
+
+                        <div class="rowMain">
+
+                          <div class="rowTitle">
+
+                            ${
+                              item.bad
+                                ? '☠️'
+                                : '✨'
+                            }
+
+                            ${
+                              esc(
+                                EFFECT[
+                                  item.type
+                                ]
+                                ||
+                                item.name
+                                ||
+                                item.type
+                              )
+                            }
+
+                          </div>
+
+                          <div class="rowMeta">
+
+                            ${
+                              esc(
+                                item.bad
+                                  ? 'Negative Wirkung'
+                                  : (
+                                    item.description
+                                    ||
+                                    item.source_item?.name
+                                    ||
+                                    'Aktiver Bonus'
+                                  )
+                              )
+                            }
+
+                          </div>
+
+                        </div>
+
+                        <div
+                          class="timer"
+
+                          ${
+                            end
+                              ? `data-expires="${end}"`
+                              : ''
+                          }
+                        >
+
+                          ${
+                            end
+                              ? t(
+                                  (
+                                    end -
+                                    Date.now()
+                                  )
+                                  /
+                                  1000
+                                )
+                              : (
+                                  fmt(
+                                    item.remaining_minutes
+                                  )
+                                  +
+                                  ' Min'
+                                )
+                          }
+
+                        </div>
+
+                      </div>
+                    `;
+
+                  }
+                )
+                .join('')
               }
 
             </div>
+          `
 
-          </div>
-        `;
-
+          : `
+            <div class="empty">
+              Keine aktiven Buffs oder Debuffs.
+            </div>
+          `
       }
 
-    ).join('');
+    </div>
+  `;
 
 }
 
 
-/* =========================
-   SHOP
-========================= */
-
 /*
-  Die offizielle API dokumentiert:
+  SHOP
 
-  {
-    offers: [
-      {
-        id,
-        item_id,
-        item_name,
-        price,
-        currency
-      }
-    ]
-  }
-
-  Zusätzlich suchen wir rekursiv nach Offers,
-  damit auch leicht abweichende Wrapper funktionieren.
+  Durchsucht auch verschachtelte
+  API-Antworten nach Angeboten.
 */
 
-function findOfferArray(
+function findOffers(
   node,
   depth = 0
 ){
 
   if(
-    depth > 5 ||
-    node === null ||
-    node === undefined
+    depth > 6 ||
+    node == null
   ){
-
     return [];
-
   }
 
 
@@ -1270,36 +1522,36 @@ function findOfferArray(
     )
   ){
 
-    const looksLikeOffers =
+    if(
       node.some(
         item =>
           item &&
-          typeof item === 'object' &&
+          typeof item ===
+            'object'
+          &&
           (
-            'price' in item ||
-            'item_name' in item ||
+            'price' in item
+            ||
+            'item_name' in item
+            ||
             'item_id' in item
+            ||
+            'currency' in item
           )
-      );
-
-
-    if(
-      looksLikeOffers
+      )
     ){
-
       return node;
-
     }
 
 
     for(
-      const child
+      const item
       of node
     ){
 
       const found =
-        findOfferArray(
-          child,
+        findOffers(
+          item,
           depth + 1
         );
 
@@ -1307,9 +1559,7 @@ function findOfferArray(
       if(
         found.length
       ){
-
         return found;
-
       }
 
     }
@@ -1321,43 +1571,41 @@ function findOfferArray(
 
 
   if(
-    typeof node !== 'object'
+    typeof node !==
+    'object'
   ){
-
     return [];
-
   }
-
-
-  const directKeys = [
-
-    'offers',
-
-    'items',
-
-    'shop_offers',
-
-    'shopItems',
-
-    'shop_items',
-
-    'products'
-
-  ];
 
 
   for(
     const key
-    of directKeys
+    of [
+      'offers',
+      'items',
+      'shop',
+      'products',
+      'current_offers',
+      'currentOffers'
+    ]
   ){
 
     if(
-      Array.isArray(
-        node[key]
-      )
+      node[key] != null
     ){
 
-      return node[key];
+      const found =
+        findOffers(
+          node[key],
+          depth + 1
+        );
+
+
+      if(
+        found.length
+      ){
+        return found;
+      }
 
     }
 
@@ -1372,7 +1620,7 @@ function findOfferArray(
   ){
 
     const found =
-      findOfferArray(
+      findOffers(
         value,
         depth + 1
       );
@@ -1381,9 +1629,7 @@ function findOfferArray(
     if(
       found.length
     ){
-
       return found;
-
     }
 
   }
@@ -1394,1267 +1640,2588 @@ function findOfferArray(
 }
 
 
-function currencyIcon(
-  currency
-){
-
-  const text =
-    String(
-      currency ||
-      ''
-    ).toLowerCase();
-
-
-  if(
-    text.includes(
-      'diamond'
-    )
-  ){
-    return '💎';
-  }
-
-
-  if(
-    text.includes(
-      'gold'
-    )
-  ){
-    return '🪙';
-  }
-
-
-  if(
-    text.includes(
-      'arrow'
-    )
-  ){
-    return '🏹';
-  }
-
-
-  return '◈';
-
-}
-
-
-function renderShop(){
-
-  const data =
-    state.data.shop;
-
-
-  const container =
-    $('#shop');
-
-
-  if(!container){
-    return;
-  }
-
+function shop(){
 
   const offers =
-    findOfferArray(
-      data
+    findOffers(
+      S.data.shop
     );
 
 
-  setText(
-    '#shopCount',
-    offers.length
-  );
+  return `
+    <div class="panel priority">
+
+      <div class="panelHead">
+
+        <div>
+
+          <div class="eyebrow">
+            AKTUELL
+          </div>
+
+          <h2>
+            🛒 Shop
+          </h2>
+
+        </div>
+
+        <span class="badge">
+          ${offers.length}
+        </span>
+
+      </div>
 
 
-  if(
-    offers.length === 0
-  ){
+      ${
+        offers.length
 
-    container.innerHTML =
-      '<div class="empty">Der Shop ist erreichbar, aber die API meldet aktuell keine Angebote.</div>';
+          ? `
+            <div class="itemGrid">
 
-    return;
+              ${
+                offers
+                .map(
+                  offer => {
 
-  }
-
-
-  container.innerHTML =
-    offers.map(
-
-      offer => {
-
-        const item =
-          (
-            offer.item &&
-            typeof offer.item ===
-            'object'
-          )
-
-            ? offer.item
-
-            : {};
+                    const item =
+                      offer.item ||
+                      {};
 
 
-        const name =
-
-          offer.item_name
-          ??
-          offer.name
-          ??
-          offer.title
-          ??
-          item.name
-          ??
-          item.name_de
-          ??
-          `Item ${
-            offer.item_id
-            ??
-            offer.id
-            ??
-            ''
-          }`;
+                    const rawName =
+                      val(
+                        offer.item_name,
+                        offer.name,
+                        offer.title,
+                        item.name_de,
+                        item.name,
+                        `Gegenstand ${
+                          offer.item_id
+                          ??
+                          offer.id
+                          ??
+                          ''
+                        }`
+                      );
 
 
-        const price =
-
-          offer.price
-          ??
-          offer.cost
-          ??
-          offer.amount
-          ??
-          offer.value
-          ??
-          offer.gold
-          ??
-          offer.diamonds;
+                    const name =
+                      ITEM_DE[
+                        String(
+                          rawName
+                        )
+                        .toLowerCase()
+                      ]
+                      ||
+                      rawName;
 
 
-        let currency =
-
-          offer.currency
-          ??
-          offer.currency_name
-          ??
-          offer.cost_currency
-          ??
-          '';
-
-
-        if(!currency){
-
-          if(
-            offer.gold !==
-            undefined
-          ){
-
-            currency =
-              'gold';
-
-          }
-
-          else if(
-            offer.diamonds !==
-            undefined
-          ){
-
-            currency =
-              'diamonds';
-
-          }
-
-        }
+                    const price =
+                      val(
+                        offer.price,
+                        offer.cost,
+                        offer.amount,
+                        offer.gold,
+                        offer.diamonds
+                      );
 
 
-        return `
-          <div class="shopItem">
+                    const currency =
+                      val(
+                        offer.currency,
+                        offer.currency_name,
+                        offer.cost_currency,
+                        offer.gold != null
+                          ? 'gold'
+                          : (
+                            offer.diamonds != null
+                              ? 'diamonds'
+                              : ''
+                          )
+                      );
 
-            <b>
-              ${esc(name)}
-            </b>
 
-            <div class="price">
+                    const lower =
+                      String(
+                        currency
+                      )
+                      .toLowerCase();
 
-              ${currencyIcon(
-                currency
-              )}
 
-              ${fmt(
-                price
-              )}
+                    return `
+                      <div class="item">
 
-              ${esc(
-                currency
-              )}
+                        <b>
+                          ${esc(name)}
+                        </b>
+
+                        <small>
+
+                          ${
+                            lower.includes(
+                              'diamond'
+                            )
+                              ? '💎'
+                              : '🪙'
+                          }
+
+                          ${fmt(price)}
+
+                          ${
+                            lower.includes(
+                              'diamond'
+                            )
+                              ? 'Diamanten'
+                              : (
+                                lower.includes(
+                                  'gold'
+                                )
+                                  ? 'Gold'
+                                  : esc(currency)
+                              )
+                          }
+
+                        </small>
+
+                      </div>
+                    `;
+
+                  }
+                )
+                .join('')
+              }
 
             </div>
+          `
 
-          </div>
-        `;
-
+          : `
+            <div class="empty">
+              Die Shop-API liefert im Moment keine Angebote.
+              Der Bereich aktualisiert sich automatisch,
+              sobald Angebote gemeldet werden.
+            </div>
+          `
       }
 
-    ).join('');
-
-}
-
-
-/* =========================
-   EVENTS
-========================= */
-
-function eventLabelFromKey(
-  key
-){
-
-  const labels = {
-
-    hunting_monday:
-      'Jagd-Montag',
-
-    funfair:
-      'Jahrmarkt',
-
-    combat_division:
-      'Kampfklassen-Auswertung',
-
-    combat_tournament_wednesday:
-      'Kampfturnier-Mittwoch',
-
-    double_thursday:
-      'Doppel-Ruhm',
-
-    knight_games:
-      'Ritterspiele',
-
-    castle_garden:
-      'Schlossgarten',
-
-    halloween:
-      'Halloween',
-
-    kings_tournament:
-      'Königsturnier'
-
-  };
-
-
-  return (
-    labels[key]
-    ||
-    String(
-      key || ''
-    )
-      .replaceAll(
-        '_',
-        ' '
-      )
-      .replace(
-        /\b\w/g,
-        letter =>
-          letter.toUpperCase()
-      )
-  );
+    </div>
+  `;
 
 }
 
 
 /*
-  Nur echte aktive Events.
-  outpost_status wird absichtlich NICHT
-  verwendet.
+  EVENTS
 */
 
-function isTrulyActive(
-  value
-){
+function activeEvents(){
 
-  if(
-    value === true
-  ){
-    return true;
-  }
+  const live =
+    S.data.live || {};
 
-
-  if(
-    !value ||
-    typeof value !==
-    'object'
-  ){
-
-    return false;
-
-  }
-
-
-  if(
-    value.active === true ||
-    value.is_active === true
-  ){
-
-    return true;
-
-  }
-
-
-  const status =
-    String(
-      value.status
-      ??
-      value.state
-      ??
-      ''
-    ).toLowerCase();
-
-
-  return [
-
-    'active',
-
-    'running',
-
-    'registration',
-
-    'fighting',
-
-    'ceremony'
-
-  ].includes(
-    status
-  );
-
-}
-
-
-function collectActiveEvents(
-  data
-){
-
-  const active =
+  const result =
     [];
 
 
-  Object.entries(
-    data.weekly_events ||
-    {}
-  )
-    .forEach(
+  for(
+    const [
+      key,
+      value
+    ]
+    of Object.entries(
+      live.weekly_events ||
+      {}
+    )
+  ){
 
-      (
-        [
-          key,
-          value
-        ]
-      ) => {
+    if(
+      value === true
+      ||
+      value?.active ===
+      true
+    ){
 
-        if(
-          !isTrulyActive(
-            value
-          )
-        ){
-
-          return;
-
-        }
-
-
-        let name =
-          value?.name ||
-          eventLabelFromKey(
-            key
-          );
+      let name =
+        EVENT_NAMES[key]
+        ||
+        key;
 
 
-        let meta =
-          value?.description ||
-          'Regelmäßiges Wochen-Event';
+      let meta =
+        'Aktives Wochen-Event';
 
 
-        if(
-          key ===
-          'knight_games' &&
-          value?.status
-        ){
+      if(
+        key ===
+        'knight_games'
+      ){
 
-          const phases = {
-
-            registration:
-              'Registrierung',
-
-            fighting:
-              'Kämpfe',
-
-            ceremony:
-              'Siegerehrung'
-
-          };
-
-
-          name =
-            `Ritterspiele – ${
-              phases[
-                value.status
-              ]
-              ||
+        name =
+          `Ritterspiele – ${
+            de(
               value.status
-            }`;
-
-        }
-
-
-        if(
-          key ===
-          'castle_garden' &&
-          value?.merchant
-        ){
-
-          meta =
-            `Händler: ${
-              value.merchant
-            }`;
-
-        }
-
-
-        active.push({
-
-          icon:
-            '📅',
-
-          name,
-
-          meta
-
-        });
+            )
+          }`;
 
       }
 
-    );
+
+      if(
+        key ===
+        'castle_garden'
+        &&
+        value.merchant
+      ){
+
+        meta =
+          `Händler: ${
+            value.merchant
+          }`;
+
+      }
 
 
-  Object.entries(
-    data.events ||
-    {}
-  )
-    .forEach(
+      result.push({
+        name,
+        meta
+      });
 
-      (
-        [
+    }
+
+  }
+
+
+  for(
+    const [
+      key,
+      value
+    ]
+    of Object.entries(
+      live.events ||
+      {}
+    )
+  ){
+
+    if(
+      value === true
+      ||
+      value?.active ===
+      true
+    ){
+
+      result.push({
+
+        name:
+          value?.name_de
+          ||
+          EVENT_NAMES[key]
+          ||
           key,
-          value
-        ]
-      ) => {
 
-        if(
-          !isTrulyActive(
-            value
-          )
-        ){
+        meta:
+          value?.description_de
+          ||
+          'Aktives Sonder-Event'
 
-          return;
+      });
 
-        }
+    }
+
+  }
 
 
-        active.push({
-
-          icon:
-            '✨',
-
-          name:
-            value?.name ||
-            eventLabelFromKey(
-              key
-            ),
-
-          meta:
-            value?.description ||
-            'Sonder-Event'
-
-        });
-
-      }
-
-    );
-
-
-  return active;
+  return result;
 
 }
 
 
-/*
-  "Als Nächstes" basiert auf dem offiziellen
-  regelmäßigen Wochenplan.
-
-  Dadurch bleibt dieser Bereich sichtbar,
-  auch wenn die Live-API nur active:false liefert.
-*/
-
-function nextWeeklyEvents(
-  limit = 3
-){
+function upcoming(){
 
   const today =
     new Date()
       .getDay();
 
 
-  return WEEKLY_EVENTS
+  return WEEK
 
     .map(
+      event => ({
+        ...event,
 
-      event => {
-
-        let delta =
+        delta:
           (
             event.day -
             today +
             7
-          ) % 7;
-
-
-        if(
-          delta === 0
-        ){
-
-          delta =
-            7;
-
-        }
-
-
-        return {
-
-          ...event,
-
-          delta
-
-        };
-
-      }
-
+          )
+          %
+          7
+          ||
+          7
+      })
     )
 
     .sort(
-      (
-        a,
-        b
-      ) =>
+      (a,b) =>
         a.delta -
         b.delta
     )
 
     .slice(
       0,
-      limit
+      3
     );
 
 }
 
 
-function dayText(
-  delta
-){
+function when(days){
 
   if(
-    delta === 1
+    days === 1
   ){
     return 'Morgen';
   }
 
 
   if(
-    delta === 2
+    days === 2
   ){
     return 'Übermorgen';
   }
 
 
   return (
-    `In ${delta} Tagen`
+    `In ${days} Tagen`
   );
 
 }
 
 
-function renderEvents(){
+function events(){
 
-  const data =
-    state.data.live || {};
-
-
-  const nowContainer =
-    $('#eventsNow');
+  const now =
+    activeEvents();
 
 
-  const nextContainer =
-    $('#eventsNext');
+  const next =
+    upcoming();
 
 
-  const active =
-    collectActiveEvents(
-      data
-    );
+  return `
+    <div class="panel events">
 
+      <div class="panelHead">
 
-  if(
-    nowContainer
-  ){
+        <div>
 
-    if(
-      active.length
-    ){
-
-      nowContainer.innerHTML =
-        active.map(
-
-          event => `
-
-            <div class="eventCard now">
-
-              <div class="eventTitle">
-
-                <span>
-
-                  ${event.icon}
-
-                  ${esc(
-                    event.name
-                  )}
-
-                </span>
-
-                <span class="eventWhen">
-                  JETZT
-                </span>
-
-              </div>
-
-
-              <div class="eventMeta">
-
-                ${esc(
-                  event.meta
-                )}
-
-              </div>
-
-            </div>
-
-          `
-
-        ).join('');
-
-    }
-
-    else{
-
-      nowContainer.innerHTML =
-        '<div class="empty">Gerade läuft kein besonderes Event.</div>';
-
-    }
-
-  }
-
-
-  const upcoming =
-    nextWeeklyEvents(
-      3
-    );
-
-
-  if(
-    nextContainer
-  ){
-
-    nextContainer.innerHTML =
-      upcoming.map(
-
-        event => `
-
-          <div class="eventCard next">
-
-            <div class="eventTitle">
-
-              <span>
-
-                ${event.icon}
-
-                ${esc(
-                  event.name
-                )}
-
-              </span>
-
-              <span class="eventWhen">
-
-                ${dayText(
-                  event.delta
-                )}
-
-              </span>
-
-            </div>
-
-
-            <div class="eventMeta">
-
-              ${esc(
-                event.desc
-              )}
-
-            </div>
-
+          <div class="eyebrow">
+            EVENTS
           </div>
 
-        `
+          <h2>
+            📅 Jetzt & als Nächstes
+          </h2>
 
-      ).join('');
+        </div>
 
-  }
+      </div>
 
-}
 
+      <div class="grid2">
 
-/* =========================
-   SKILLS
-========================= */
 
-function renderSkills(){
+        <div>
 
-  const data =
-    state.data.skills || {};
-
-
-  function fill(
-    container,
-    items
-  ){
-
-    if(!container){
-      return;
-    }
-
-
-    if(
-      !Array.isArray(
-        items
-      ) ||
-      items.length === 0
-    ){
-
-      container.innerHTML =
-        '<span class="empty">Keine Daten</span>';
-
-      return;
-
-    }
-
-
-    container.innerHTML =
-      [...items]
-
-        .sort(
-          (
-            a,
-            b
-          ) =>
-            Number(
-              b.active ===
-              true
-            )
-            -
-            Number(
-              a.active ===
-              true
-            )
-        )
-
-        .map(
-
-          skill => `
-
-            <span
-              class="chip ${
-                skill.active
-                  ? 'active'
-                  : ''
-              }"
-            >
-
-              ${esc(
-                skill.name
-              )}
-
-              ·
-
-              ${fmt(
-                skill.level
-              )}
-
-            </span>
-
-          `
-
-        ).join('');
-
-  }
-
-
-  fill(
-    $('#combatSkills'),
-    data.combat
-  );
-
-
-  fill(
-    $('#huntSkills'),
-    data.hunting
-  );
-
-}
-
-
-/* =========================
-   SCHMIED
-========================= */
-
-function renderSmith(){
-
-  const data =
-    state.data.blacksmith || {};
-
-
-  const container =
-    $('#smith');
-
-
-  if(!container){
-    return;
-  }
-
-
-  const rows =
-    [];
-
-
-  const fields = [
-
-    [
-      'sword',
-      'Schwert'
-    ],
-
-    [
-      'armor',
-      'Rüstung'
-    ],
-
-    [
-      'shelter',
-      'Unterkunft'
-    ]
-
-  ];
-
-
-  for(
-    const [
-      key,
-      label
-    ]
-    of fields
-  ){
-
-    const item =
-      data[key];
-
-
-    if(!item){
-      continue;
-    }
-
-
-    const expiry =
-      item.timer
-        ? expiresAtMs(
-            item.timer
-          )
-        : null;
-
-
-    const remaining =
-      expiry
-
-        ? Math.max(
-          0,
-          Math.ceil(
-            (
-              expiry -
-              Date.now()
-            ) / 1000
-          )
-        )
-
-        : null;
-
-
-    rows.push(`
-
-      <div class="smithItem">
-
-        <div class="itemTop">
-
-          <div class="itemName">
-
-            ${label}
-
-            ·
-
-            Stufe ${
-              fmt(
-                item.level
-              )
-            }
-
+          <div class="sectionTitle">
+            Läuft gerade
           </div>
 
+          ${
+            now.length
 
-          <div
-            class="timer"
-            ${
-              expiry
-                ? `data-expires-at="${expiry}"`
-                : ''
-            }
-          >
+              ? now
+                .map(
+                  event => `
+                    <div class="eventCard">
 
-            ${
-              item.in_progress
+                      <div class="eventTop">
 
-                ? (
-                  remaining !== null
+                        <span>
+                          ✨ ${esc(event.name)}
+                        </span>
 
-                    ? countdownText(
-                        remaining
-                      )
+                        <span class="eventWhen">
+                          JETZT
+                        </span>
 
-                    : `${
-                        fmt(
-                          item
-                            .timer
-                            ?.remaining_minutes
-                        )
-                      } Min`
+                      </div>
+
+                      <div class="rowMeta">
+                        ${esc(event.meta)}
+                      </div>
+
+                    </div>
+                  `
                 )
+                .join('')
 
-                : 'bereit'
-            }
-
-          </div>
+              : `
+                <div class="empty">
+                  Gerade läuft kein besonderes Event.
+                </div>
+              `
+          }
 
         </div>
 
 
-        ${
-          item.next_upgrade
+        <div>
 
-            ? `
+          <div class="sectionTitle">
+            Als Nächstes
+          </div>
 
-              <div class="itemMeta">
+          ${
+            next
+            .map(
+              event => `
+                <div class="eventCard eventNext">
 
-                Nächste Stufe:
+                  <div class="eventTop">
 
-                ${
-                  fmt(
-                    item
-                      .next_upgrade
-                      .level
-                  )
-                }
+                    <span>
 
-                ·
+                      ${event.icon}
 
-                ${
-                  fmt(
-                    item
-                      .next_upgrade
-                      .cost_gold
-                  )
-                }
+                      ${esc(event.name)}
 
-                🪙
+                    </span>
 
-              </div>
+                    <span class="eventWhen">
+                      ${when(event.delta)}
+                    </span>
 
-            `
+                  </div>
 
-            : ''
-        }
+                  <div class="rowMeta">
+                    ${esc(event.desc)}
+                  </div>
+
+                </div>
+              `
+            )
+            .join('')
+          }
+
+        </div>
 
       </div>
 
-    `);
-
-  }
-
-
-  container.innerHTML =
-    rows.length
-
-      ? rows.join('')
-
-      : '<div class="empty">Keine Schmiededaten.</div>';
+    </div>
+  `;
 
 }
 
 
-/* =========================
-   DRACHE
-========================= */
+/*
+  SCHNELLÜBERSICHT
+*/
 
-function renderDragon(){
+function quickStatus(){
+
+  const p =
+    S.data.profile || {};
+
+  const ranking =
+    p.ranking || {};
+
+  const activity =
+    ranking.activity_rank ||
+    {};
+
+  const hunt =
+    p.hunting || {};
+
+  const upgrades =
+    p.upgrades || {};
+
+  const stats =
+    S.data.stats || {};
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+
+        <h2>
+          📊 Schnellübersicht
+        </h2>
+
+        <span class="tiny muted">
+
+          ${
+            new Date()
+              .toLocaleTimeString(
+                'de-DE',
+                {
+                  hour:'2-digit',
+                  minute:'2-digit'
+                }
+              )
+          }
+
+        </span>
+
+      </div>
+
+
+      <div class="grid3">
+
+        <div class="tile">
+          <b>
+            ${
+              fmt(
+                ranking.position
+                ??
+                p.rank?.number
+              )
+            }
+          </b>
+          <span>Rang</span>
+        </div>
+
+
+        <div class="tile">
+          <b>
+            ${fmt(activity.rank)}
+            /
+            ${fmt(activity.max_rank)}
+          </b>
+          <span>Aktivität</span>
+        </div>
+
+
+        <div class="tile">
+          <b>${fmt(hunt.level)}</b>
+          <span>Jagdlevel</span>
+        </div>
+
+
+        <div class="tile">
+          <b>${fmt(p.progress?.tower)}</b>
+          <span>Turm-Ebene</span>
+        </div>
+
+
+        <div class="tile">
+
+          <b>
+            ${fmt(upgrades.sword)}
+            /
+            ${fmt(upgrades.armor)}
+            /
+            ${fmt(upgrades.shelter)}
+          </b>
+
+          <span>
+            Schwert/Rüstung/Unterkunft
+          </span>
+
+        </div>
+
+
+        <div class="tile">
+
+          <b>
+            ${fmt(stats.pvp?.winrate)}%
+          </b>
+
+          <span>
+            PvP-Siegquote
+          </span>
+
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+}
+
+
+/*
+  SEITE 1
+*/
+
+function overview(){
+
+  return `
+
+    <div class="pageHeader">
+
+      <h2>
+        Übersicht
+      </h2>
+
+      <small>
+        Wischen für weitere Bereiche →
+      </small>
+
+    </div>
+
+    ${hero()}
+
+    ${buffs()}
+
+    ${shop()}
+
+    ${events()}
+
+    ${quickStatus()}
+
+  `;
+
+}
+
+
+/*
+  KAMPFWERTE
+*/
+
+function combatValues(){
+
+  const p =
+    S.data.profile || {};
+
+  const combat =
+    p.combat || {};
+
+  const ranking =
+    p.ranking || {};
+
+  const activity =
+    ranking.activity_rank ||
+    {};
+
+
+  const values = [
+
+    [
+      'Lebenspunkte',
+      val(
+        combat.hp?.total,
+        combat.hp
+      ),
+      '❤️'
+    ],
+
+    [
+      'Stärke',
+      val(
+        combat.strength?.total,
+        combat.strength
+      ),
+      '💣'
+    ],
+
+    [
+      'Verteidigung',
+      val(
+        combat.defense?.total,
+        combat.defense
+      ),
+      '🛡️'
+    ],
+
+    [
+      'Geschwindigkeit',
+      val(
+        combat.speed?.total,
+        combat.speed
+      ),
+      '🥕'
+    ],
+
+    [
+      'Glück',
+      val(
+        combat.luck?.total,
+        combat.luck
+      ),
+      '🧲'
+    ],
+
+    [
+      'Kritisch',
+      val(
+        combat.critical?.total,
+        combat.critical,
+        combat.crit
+      ),
+      '💀'
+    ]
+
+  ]
+  .filter(
+    item =>
+      item[1] != null
+  );
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          ⚔️ Kampfwerte
+        </h2>
+      </div>
+
+      ${
+        values.length
+
+          ? values
+            .map(
+              item =>
+                row(
+                  item[0],
+                  item[1],
+                  '',
+                  item[2]
+                )
+            )
+            .join('')
+
+          : `
+            <div class="empty">
+              Die API liefert für dieses Profil
+              keine detaillierten Kampfwerte.
+            </div>
+          `
+      }
+
+      ${
+        activity.rank != null
+
+          ? row(
+              'Aktivitätsrang',
+
+              `${activity.rank} / ${activity.max_rank}`,
+
+              `${fmt(activity.better_than_percent)} % besser als Vergleichsgruppe`,
+
+              '📈'
+            )
+
+          : ''
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  JAGD
+*/
+
+function hunting(){
+
+  const p =
+    S.data.profile || {};
+
+  const hunt =
+    p.hunting || {};
+
+
+  const values = [
+
+    [
+      'Jagdlevel',
+      hunt.level,
+      '🌲'
+    ],
+
+    [
+      'Jagdpunkte',
+      hunt.points,
+      '🦌'
+    ],
+
+    [
+      'Abschüsse',
+      hunt.kills,
+      '💀'
+    ],
+
+    [
+      'Durchschlagskraft',
+
+      val(
+        hunt.breakthrough,
+        hunt.breakthrough_power
+      ),
+
+      '💣'
+    ],
+
+    [
+      'Genauigkeit',
+
+      val(
+        hunt.aim,
+        hunt.accuracy
+      ),
+
+      '🎯'
+    ],
+
+    [
+      'Spuren lesen',
+
+      val(
+        hunt.marks,
+        hunt.tracking
+      ),
+
+      '🐾'
+    ]
+
+  ]
+  .filter(
+    item =>
+      item[1] != null
+  );
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          🏹 Jagd
+        </h2>
+      </div>
+
+      ${
+        values
+        .map(
+          item =>
+            row(
+              item[0],
+              item[1],
+              '',
+              item[2]
+            )
+        )
+        .join('')
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  SCHMIED
+*/
+
+function blacksmith(){
 
   const data =
-    state.data.dragon || {};
+    S.data.blacksmith || {};
 
 
-  const container =
-    $('#dragon');
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          🔨 Schmied
+        </h2>
+      </div>
+
+      ${
+        [
+          'sword',
+          'armor',
+          'shelter'
+        ]
+        .map(
+          (
+            key,
+            index
+          ) => {
+
+            const item =
+              data[key];
 
 
-  if(!container){
-    return;
+            if(!item){
+              return '';
+            }
+
+
+            const end =
+              expiry(
+                item.timer
+              );
+
+
+            return row(
+
+              [
+                'Schwert',
+                'Rüstung',
+                'Unterkunft'
+              ][index],
+
+              `Stufe ${
+                fmt(
+                  item.level
+                )
+              }`,
+
+              item.in_progress
+
+                ? (
+                  end
+                    ? `Fertig in ${
+                        t(
+                          (
+                            end -
+                            Date.now()
+                          )
+                          /
+                          1000
+                        )
+                      }`
+                    : 'Ausbau läuft'
+                )
+
+                : `Nächste Stufe: ${
+                    fmt(
+                      item.next_upgrade
+                        ?.cost_gold
+                    )
+                  } Gold`,
+
+              [
+                '⚔️',
+                '🛡️',
+                '🏠'
+              ][index]
+
+            );
+
+          }
+        )
+        .join('')
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  SKILLS
+*/
+
+function skills(){
+
+  const data =
+    S.data.skills || {};
+
+
+  const block =
+    (
+      title,
+      items
+    ) => `
+
+      <div class="sectionTitle">
+        ${title}
+      </div>
+
+      <div class="chips">
+
+        ${
+          (
+            items ||
+            []
+          ).length
+
+            ? (
+                items ||
+                []
+              )
+              .map(
+                item => `
+                  <span
+                    class="chip ${
+                      item.active
+                        ? 'active'
+                        : ''
+                    }"
+                  >
+
+                    ${
+                      esc(
+                        skillName(
+                          item
+                        )
+                      )
+                    }
+
+                    ·
+
+                    ${
+                      fmt(
+                        item.level
+                      )
+                    }
+
+                  </span>
+                `
+              )
+              .join('')
+
+            : `
+              <span class="empty">
+                Keine Daten
+              </span>
+            `
+        }
+
+      </div>
+    `;
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          ✨ Fähigkeiten
+        </h2>
+      </div>
+
+      ${
+        block(
+          'Kampf',
+          data.combat
+        )
+      }
+
+      ${
+        block(
+          'Düsterwald',
+          data.hunting
+        )
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  TURNIERE
+*/
+
+function tournaments(){
+
+  const data =
+    S.data.tournaments ||
+    {};
+
+
+  const one =
+    (
+      title,
+      item
+    ) => {
+
+      if(!item){
+
+        return row(
+          title,
+          'Keine Teilnahme',
+          '',
+          title.includes(
+            'Jagd'
+          )
+            ? '🏹'
+            : '⚔️'
+        );
+
+      }
+
+
+      return row(
+
+        title,
+
+        `Platz ${
+          fmt(
+            item.position
+          )
+        }`,
+
+        `${
+          de(
+            item.tournament?.type
+          )
+        } · Punkte ${
+          fmt(
+            item.score
+          )
+        }${
+          item.credits != null
+            ? ` · Kämpfe übrig ${fmt(item.credits)}`
+            : ''
+        }`,
+
+        title.includes(
+          'Jagd'
+        )
+          ? '🏹'
+          : '⚔️'
+
+      );
+
+    };
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          🏆 Turniere
+        </h2>
+      </div>
+
+      ${
+        one(
+          'Jagdturnier',
+          data.hunting
+        )
+      }
+
+      ${
+        one(
+          'Kampfturnier',
+          data.combat
+        )
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  SEITE RITTER
+*/
+
+function knight(){
+
+  const p =
+    S.data.profile || {};
+
+  const stats =
+    S.data.stats || {};
+
+  const order =
+    S.data.order || {};
+
+
+  return `
+
+    <div class="pageHeader">
+
+      <h2>
+        Mein Ritter
+      </h2>
+
+      <small>
+        ${esc(p.name || '')}
+      </small>
+
+    </div>
+
+
+    ${combatValues()}
+
+    ${hunting()}
+
+    ${blacksmith()}
+
+    ${skills()}
+
+    ${tournaments()}
+
+
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          📈 Statistik
+        </h2>
+      </div>
+
+
+      ${
+        row(
+          'PvP-Siege',
+
+          stats.pvp?.wins,
+
+          `Niederlagen ${
+            fmt(
+              stats.pvp?.losses
+            )
+          } · Siegquote ${
+            fmt(
+              stats.pvp?.winrate
+            )
+          } %`,
+
+          '⚔️'
+        )
+      }
+
+
+      ${
+        row(
+          'Jagdturniere',
+
+          stats.hunting_tournament
+            ?.participations,
+
+          `Siege ${
+            fmt(
+              stats.hunting_tournament
+                ?.wins
+            )
+          } · Podest ${
+            fmt(
+              stats.hunting_tournament
+                ?.podiums
+            )
+          }`,
+
+          '🏹'
+        )
+      }
+
+
+      ${
+        row(
+          'Kampfturniere',
+
+          stats.combat_tournament
+            ?.participations,
+
+          `Siege ${
+            fmt(
+              stats.combat_tournament
+                ?.wins
+            )
+          } · Podest ${
+            fmt(
+              stats.combat_tournament
+                ?.podiums
+            )
+          }`,
+
+          '🏆'
+        )
+      }
+
+
+      ${
+        row(
+          'Dungeon-Bosse',
+
+          stats.dungeon
+            ?.total_kills,
+
+          `Vollständig abgeschlossen: ${
+            fmt(
+              stats.dungeon
+                ?.fully_cleared
+            )
+          }`,
+
+          '🏰'
+        )
+      }
+
+    </div>
+
+
+    ${
+      order.order
+
+        ? `
+          <div class="panel">
+
+            <div class="panelHead">
+              <h2>
+                🛡️ Orden
+              </h2>
+            </div>
+
+            ${
+              row(
+                'Orden',
+
+                order.order.name,
+
+                `Rang ${
+                  fmt(
+                    order.order.rank
+                  )
+                } · ${
+                  fmt(
+                    order.order.members
+                  )
+                } Mitglieder`,
+
+                '🛡️'
+              )
+            }
+
+            ${
+              row(
+                'Ordenspunkte',
+
+                order.order.points,
+
+                '',
+
+                '🏆'
+              )
+            }
+
+            ${
+              row(
+                'Gespendetes Gold',
+
+                order.donations?.gold,
+
+                '',
+
+                '🪙'
+              )
+            }
+
+          </div>
+        `
+
+        : ''
+    }
+
+  `;
+
+}
+
+
+/*
+  RUCKSACK
+*/
+
+function backpack(){
+
+  const data =
+    S.data.backpack || {};
+
+  const items =
+    data.items || [];
+
+  const groups =
+    {};
+
+
+  for(
+    const item
+    of items
+  ){
+
+    const category =
+      CATEGORY_DE[
+        item.category
+      ]
+      ||
+      item.category
+      ||
+      'Sonstiges';
+
+
+    if(
+      !groups[
+        category
+      ]
+    ){
+
+      groups[
+        category
+      ] = [];
+
+    }
+
+
+    groups[
+      category
+    ]
+    .push(
+      item
+    );
+
   }
+
+
+  return `
+
+    <div class="pageHeader">
+
+      <h2>
+        Rucksack
+      </h2>
+
+      <small>
+        ${
+          fmt(
+            data.total_items
+            ??
+            items.length
+          )
+        }
+        Gegenstände
+      </small>
+
+    </div>
+
+
+    ${
+      Object.entries(
+        groups
+      ).length
+
+        ? Object.entries(
+            groups
+          )
+          .map(
+            (
+              [
+                category,
+                list
+              ]
+            ) => `
+
+              <div class="panel category">
+
+                <h3>
+
+                  ${esc(category)}
+
+                  <span class="tiny muted">
+                    ${list.length}
+                  </span>
+
+                </h3>
+
+
+                <div class="itemGrid">
+
+                  ${
+                    list
+                    .map(
+                      item => `
+
+                        <div class="item">
+
+                          <b>
+
+                            ${
+                              fmt(
+                                item.amount
+                              )
+                            }
+
+                            ×
+
+                            ${
+                              esc(
+                                itemName(
+                                  item
+                                )
+                              )
+                            }
+
+                          </b>
+
+                          <small>
+
+                            ${
+                              item.level
+                                ? `Stufe ${fmt(item.level)} · `
+                                : ''
+                            }
+
+                            ${
+                              item.is_equipped
+                                ? 'Ausgerüstet'
+                                : ''
+                            }
+
+                            ${
+                              item.description_de
+                              ||
+                              item.description
+
+                                ? `<br>${
+                                    esc(
+                                      item.description_de
+                                      ||
+                                      item.description
+                                    )
+                                  }`
+
+                                : ''
+                            }
+
+                          </small>
+
+                        </div>
+
+                      `
+                    )
+                    .join('')
+                  }
+
+                </div>
+
+              </div>
+
+            `
+          )
+          .join('')
+
+        : `
+          <div class="panel empty">
+            Rucksackdaten sind derzeit nicht verfügbar.
+          </div>
+        `
+    }
+
+  `;
+
+}
+
+
+/*
+  WALD
+*/
+
+function forest(){
+
+  const data =
+    S.data.forest || {};
+
+  const king =
+    data.orc_king || {};
+
+  const dragon =
+    data.dragon || {};
+
+  const plagues =
+    data.plagues || {};
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          🌲 Düsterwald live
+        </h2>
+      </div>
+
+
+      ${
+        row(
+          'Orkkönig',
+
+          king.alive
+            ? 'Lebt'
+            : 'Besiegt',
+
+          king.alive
+
+            ? `${
+                fmt(
+                  king.hp_percent
+                )
+              } % Leben · Belohnung ${
+                fmt(
+                  king.reward
+                )
+              } · seit ${
+                fmt(
+                  king.days_alive
+                )
+              } Tagen`
+
+            : '',
+
+          '👑'
+        )
+      }
+
+
+      ${
+        row(
+          'Reichsdrache',
+
+          de(
+            dragon.phase
+          ),
+
+          dragon.attack_count != null
+            ? `${fmt(dragon.attack_count)}. Angriff`
+            : '',
+
+          '🐉'
+        )
+      }
+
+
+      ${
+        Object.entries(
+          plagues
+        )
+        .map(
+          (
+            [
+              key,
+              item
+            ]
+          ) => {
+
+            if(
+              !item?.active
+            ){
+              return '';
+            }
+
+
+            const color =
+
+              key === 'green'
+
+                ? 'Grüne'
+
+                : (
+                  key === 'yellow'
+                    ? 'Gelbe'
+                    : 'Rote'
+                );
+
+
+            return row(
+
+              `${color} Seuche`,
+
+              item.orc_name_de
+              ||
+              'Aktiv',
+
+              `${fmt(item.remaining)} verbleibend`,
+
+              '☣️'
+
+            );
+
+          }
+        )
+        .join('')
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  PROVINZ
+*/
+
+function province(){
+
+  const data =
+    S.data.province || {};
+
+
+  if(
+    data.number == null
+  ){
+    return '';
+  }
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          🏳️ Provinzkampf
+        </h2>
+      </div>
+
+
+      ${
+        row(
+          'Provinz',
+
+          data.name_de
+          ||
+          data.name_en,
+
+          `Nr. ${
+            fmt(
+              data.number
+            )
+          } · ${
+            de(
+              data.status
+            )
+          }`,
+
+          '🏳️'
+        )
+      }
+
+
+      ${
+        row(
+          'Bonus',
+
+          data.reward_de
+          ||
+          data.reward_en,
+
+          '',
+
+          '🎁'
+        )
+      }
+
+
+      ${
+        (
+          data.orders ||
+          []
+        )
+        .slice(
+          0,
+          3
+        )
+        .map(
+          order =>
+
+            row(
+
+              `Platz ${
+                order.rank
+              }`,
+
+              order.name_de
+              ||
+              order.name_en,
+
+              `${
+                fmt(
+                  order.points
+                )
+              } Punkte · ${
+                fmt(
+                  order.tokens
+                )
+              } Marken`,
+
+              '🛡️'
+
+            )
+        )
+        .join('')
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  STRATEGIEKAMMER
+*/
+
+function party(){
+
+  const party =
+    S.data.party
+      ?.party;
+
+
+  if(!party){
+
+    return `
+      <div class="panel">
+
+        <div class="panelHead">
+          <h2>
+            👥 Strategiekammer
+          </h2>
+        </div>
+
+        <div class="empty">
+          Du bist derzeit keiner Strategiekammer-Gruppe beigetreten.
+        </div>
+
+      </div>
+    `;
+
+  }
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+
+        <h2>
+          👥 Strategiekammer
+        </h2>
+
+        <span class="pill">
+          ${de(party.status)}
+        </span>
+
+      </div>
+
+
+      ${
+        row(
+          'Dungeon',
+
+          party.dungeon,
+
+          '',
+
+          '🏰'
+        )
+      }
+
+
+      <div class="sectionTitle">
+        Mitglieder
+      </div>
+
+
+      ${
+        (
+          party.members ||
+          []
+        )
+        .map(
+          member =>
+
+            row(
+
+              member.name,
+
+              member.is_you
+                ? 'Du'
+                : (
+                  member.is_leader
+                    ? 'Leitung'
+                    : 'Mitglied'
+                ),
+
+              '',
+
+              member.is_leader
+                ? '👑'
+                : '⚔️'
+
+            )
+        )
+        .join('')
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  DUNGEONS
+*/
+
+function dungeons(){
+
+  const data =
+    S.data.dungeons || {};
+
+  const list =
+    data.dungeons || [];
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+
+        <h2>
+          🏰 Dungeons
+        </h2>
+
+        <span class="badge">
+          ${fmt(data.total_kills || 0)}
+        </span>
+
+      </div>
+
+
+      ${
+        list.length
+
+          ? list
+            .map(
+              dungeon => `
+
+                <div class="eventCard">
+
+                  <div class="eventTop">
+
+                    <span>
+
+                      ${
+                        esc(
+                          dungeon.name_de
+                          ||
+                          dungeon.name
+                        )
+                      }
+
+                    </span>
+
+                    <span>
+
+                      ${
+                        Object.values(
+                          dungeon.difficulties ||
+                          {}
+                        )
+                        .filter(
+                          value =>
+                            value.completed
+                        )
+                        .length
+                      }
+
+                      /
+
+                      ${
+                        Object.keys(
+                          dungeon.difficulties ||
+                          {}
+                        )
+                        .length
+                      }
+
+                    </span>
+
+                  </div>
+
+
+                  ${
+                    Object.entries(
+                      dungeon.difficulties ||
+                      {}
+                    )
+                    .map(
+                      (
+                        [
+                          key,
+                          value
+                        ]
+                      ) => `
+
+                        <div class="rowMeta">
+
+                          ${de(key)}:
+
+                          ${
+                            fmt(
+                              value.kills
+                            )
+                          }
+
+                          /
+
+                          ${
+                            fmt(
+                              value.max_kills
+                            )
+                          }
+
+                          ${
+                            value.completed
+                              ? '✓'
+                              : ''
+                          }
+
+                        </div>
+
+                      `
+                    )
+                    .join('')
+                  }
+
+                </div>
+
+              `
+            )
+            .join('')
+
+          : `
+            <div class="empty">
+              Keine Dungeon-Daten.
+            </div>
+          `
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  EIGENER DRACHE
+*/
+
+function dragonCard(){
+
+  const data =
+    S.data.dragon || {};
 
 
   if(
     data.has_dragon ===
     false
   ){
-
-    container.innerHTML =
-      '<div class="empty">Noch kein Drache.</div>';
-
-    return;
-
+    return '';
   }
 
 
-  if(
-    data.level ===
-    undefined
-  ){
+  return `
+    <div class="panel">
 
-    container.innerHTML =
-      '<div class="empty">Keine Drachendaten.</div>';
-
-    return;
-
-  }
-
-
-  const percent =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        Number(
-          data.xp_percent ||
-          0
-        )
-      )
-    );
-
-
-  container.innerHTML = `
-
-    <div class="itemTop">
-
-      <div class="itemName">
-
-        Level ${
-          fmt(
-            data.level
-          )
-        }
-
+      <div class="panelHead">
+        <h2>
+          🐉 Eigener Drache
+        </h2>
       </div>
 
-      <div class="timer">
-
-        ${esc(
-          data.status ||
-          ''
-        )}
-
-      </div>
-
-    </div>
-
-
-    <div class="itemMeta">
-
-      XP
 
       ${
-        fmt(
-          data.xp
+        row(
+          'Status',
+          de(data.status),
+          '',
+          '🐉'
         )
       }
 
-      /
 
       ${
-        fmt(
-          data.xp_needed
+        row(
+          'Level',
+
+          data.level,
+
+          `XP ${
+            fmt(
+              data.xp
+            )
+          } / ${
+            fmt(
+              data.xp_needed
+            )
+          }`,
+
+          '⭐'
         )
       }
 
-      · Futter
 
       ${
-        fmt(
-          data.food
+        row(
+          'Futter',
+
+          data.food,
+
+          '',
+
+          '🍖'
+        )
+      }
+
+
+      ${
+        progress(
+          data.xp_percent
         )
       }
 
     </div>
-
-
-    <div class="progress">
-
-      <i
-        style="width:${percent}%"
-      ></i>
-
-    </div>
-
   `;
 
 }
 
 
-/* =========================
-   AUSSENPOSTEN
-========================= */
+/*
+  AUSSENPOSTEN
+*/
 
-function renderOutpost(){
+function outpostCard(){
 
   const data =
-    state.data.outpost || {};
-
-
-  const container =
-    $('#outpost');
-
-
-  if(!container){
-    return;
-  }
-
+    S.data.outpost || {};
 
   const task =
     data.current_task;
 
 
-  if(!task){
+  return `
+    <div class="panel">
 
-    container.innerHTML = `
+      <div class="panelHead">
+        <h2>
+          🏕️ Außenposten
+        </h2>
+      </div>
+
+
+      ${
+        task
+
+          ? `
+            ${
+              row(
+                'Aktuelle Aufgabe',
+
+                task.description_de
+                ||
+                task.description
+                ||
+                task.ident,
+
+                `${
+                  fmt(
+                    task.progress
+                  )
+                } / ${
+                  fmt(
+                    task.target
+                  )
+                }`,
+
+                '📜'
+              )
+            }
+
+            ${
+              progress(
+                (
+                  Number(
+                    task.progress
+                  )
+                  /
+                  Number(
+                    task.target
+                  )
+                )
+                * 100
+              )
+            }
+          `
+
+          : `
+            <div class="empty">
+              Keine aktive Aufgabe.
+            </div>
+          `
+      }
+
+
+      <div
+        class="grid3"
+        style="margin-top:7px"
+      >
+
+        <div class="tile">
+          <b>
+            ${
+              fmt(
+                data.tasks_completed
+              )
+            }
+          </b>
+          <span>
+            Erledigt
+          </span>
+        </div>
+
+
+        <div class="tile">
+          <b>
+            ${
+              fmt(
+                data.tasks_skipped
+              )
+            }
+          </b>
+          <span>
+            Übersprungen
+          </span>
+        </div>
+
+
+        <div class="tile">
+          <b>
+            ${
+              fmt(
+                data.pending_rewards
+              )
+            }
+          </b>
+          <span>
+            Belohnungen
+          </span>
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+}
+
+
+/*
+  SEITE WELT
+*/
+
+function world(){
+
+  return `
+
+    <div class="pageHeader">
+
+      <h2>
+        Welt & Aktivitäten
+      </h2>
+
+      <small>
+        Live-Daten
+      </small>
+
+    </div>
+
+
+    ${forest()}
+
+    ${province()}
+
+    ${party()}
+
+    ${dungeons()}
+
+    ${dragonCard()}
+
+    ${outpostCard()}
+
+  `;
+
+}
+
+
+/*
+  LIFETIME
+*/
+
+function lifetime(){
+
+  const data =
+    S.data.lifetime || {};
+
+  const combat =
+    data.combat || {};
+
+  const hunt =
+    data.hunting || {};
+
+  const economy =
+    data.economy || {};
+
+  const progression =
+    data.progression || {};
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          📚 Langzeitstatistik
+        </h2>
+      </div>
+
+
+      ${
+        row(
+          'Kämpfe gewonnen',
+
+          combat.battles_won,
+
+          `Verloren ${
+            fmt(
+              combat.battles_lost
+            )
+          } · Ruhm verdient ${
+            fmt(
+              combat.honor_earned
+            )
+          }`,
+
+          '⚔️'
+        )
+      }
+
+
+      ${
+        row(
+          'Orks besiegt',
+
+          hunt.orcs_killed,
+
+          `Wölfe ${
+            fmt(
+              hunt.wolves_killed
+            )
+          } · Pfeile ${
+            fmt(
+              hunt.arrows_shot
+            )
+          }`,
+
+          '🏹'
+        )
+      }
+
+
+      ${
+        row(
+          'Gold verdient',
+
+          economy.gold_earned,
+
+          `Leibeigene verdient ${
+            fmt(
+              economy.servants_earned
+            )
+          }`,
+
+          '🪙'
+        )
+      }
+
+
+      ${
+        row(
+          'Abenteuer abgeschlossen',
+
+          progression.adventures_completed,
+
+          `Saisons ${
+            fmt(
+              progression.seasons_played
+            )
+          } · gewonnen ${
+            fmt(
+              progression.seasons_won
+            )
+          }`,
+
+          '📜'
+        )
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  BESTIARIUM
+*/
+
+function bestiary(){
+
+  const data =
+    S.data.bestiary || {};
+
+  const pets =
+    data.pets || [];
+
+
+  return `
+    <div class="panel">
+
+      <div class="panelHead">
+
+        <h2>
+          🐺 Hidas Bestiarium
+        </h2>
+
+        <span class="badge">
+          ${
+            fmt(
+              data.pet_count
+              ??
+              pets.length
+            )
+          }
+        </span>
+
+      </div>
+
+
+      ${
+        pets.length
+
+          ? pets
+            .map(
+              pet =>
+
+                row(
+
+                  pet.name
+                  ||
+                  pet.type?.name_de
+                  ||
+                  'Begleiter',
+
+                  `Bindung ${
+                    fmt(
+                      pet.bond_level
+                    )
+                  }`,
+
+                  `${
+                    pet.type?.name_de
+                    ||
+                    ''
+                  } · Leben ${
+                    fmt(
+                      pet.health
+                    )
+                  } · Hunger ${
+                    fmt(
+                      pet.hunger
+                    )
+                  } · Stimmung ${
+                    fmt(
+                      pet.mood
+                    )
+                  }`,
+
+                  '🐾'
+
+                )
+            )
+            .join('')
+
+          : `
+            <div class="empty">
+              Keine Begleiter vorhanden.
+            </div>
+          `
+      }
+
+    </div>
+  `;
+
+}
+
+
+/*
+  MEHR
+*/
+
+function more(){
+
+  return `
+
+    <div class="pageHeader">
+
+      <h2>
+        Mehr
+      </h2>
+
+      <small>
+        Statistik & Sammlung
+      </small>
+
+    </div>
+
+
+    ${lifetime()}
+
+    ${bestiary()}
+
+
+    <div class="panel">
+
+      <div class="panelHead">
+        <h2>
+          ℹ️ Datenquelle
+        </h2>
+      </div>
 
       <div class="empty">
 
-        Keine aktive Aufgabe.
-
-      </div>
-
-      <div class="itemMeta">
-
-        Erledigt:
-
-        ${
-          fmt(
-            data.tasks_completed
-          )
-        }
-
-        ·
-
-        Belohnungen offen:
-
-        ${
-          fmt(
-            data.pending_rewards
-          )
-        }
-
-      </div>
-
-    `;
-
-    return;
-
-  }
-
-
-  const percent =
-    task.target
-
-      ? Math.min(
-        100,
-        (
-          Number(
-            task.progress
-          )
-          /
-          Number(
-            task.target
-          )
-        ) * 100
-      )
-
-      : 0;
-
-
-  container.innerHTML = `
-
-    <div class="outpostItem">
-
-      <div class="itemName">
-
-        ${esc(
-          task.description ||
-          task.ident ||
-          'Aufgabe'
-        )}
-
-      </div>
-
-
-      <div class="itemMeta">
-
-        ${
-          fmt(
-            task.progress
-          )
-        }
-
-        /
-
-        ${
-          fmt(
-            task.target
-          )
-        }
-
-      </div>
-
-
-      <div class="progress">
-
-        <i
-          style="width:${percent}%"
-        ></i>
+        Die Übersicht verwendet ausschließlich
+        Daten, die die RitterManager Premium-API
+        bereitstellt. Nicht vorhandene Werte
+        werden nicht erfunden.
 
       </div>
 
@@ -2665,80 +4232,132 @@ function renderOutpost(){
 }
 
 
-/* =========================
-   LIVE
-========================= */
+/*
+  ALLES RENDERN
+*/
 
-function renderLive(){
+function render(){
 
-  renderEvents();
+  $('#overviewPage')
+    .innerHTML =
+      overview();
+
+
+  $('#knightPage')
+    .innerHTML =
+      knight();
+
+
+  $('#backpackPage')
+    .innerHTML =
+      backpack();
+
+
+  $('#worldPage')
+    .innerHTML =
+      world();
+
+
+  $('#morePage')
+    .innerHTML =
+      more();
+
+
+  const season =
+    S.data.season ||
+    {};
+
+
+  $('#season')
+    .textContent =
+
+      season.season != null
+
+        ? (
+          `Saison ${
+            season.season
+          } · Tag ${
+            season.day
+          }${
+            season.paused
+              ? ' · pausiert'
+              : ''
+          }`
+        )
+
+        : 'Persönliche Übersicht';
+
+
+  updateCountdowns();
 
 }
 
 
-/* =========================
-   COUNTDOWN AKTUALISIERUNG
-========================= */
+/*
+  COUNTDOWNS
+*/
 
 function updateCountdowns(){
 
-  document
-    .querySelectorAll(
-      '[data-expires-at]'
-    )
-    .forEach(
+  $$(
+    '[data-expires]'
+  )
+  .forEach(
+    element => {
 
-      element => {
-
-        const expiry =
-          Number(
-            element
-              .dataset
-              .expiresAt
-          );
+      const end =
+        Number(
+          element
+            .dataset
+            .expires
+        );
 
 
-        if(
-          !Number.isFinite(
-            expiry
-          )
-        ){
-          return;
-        }
-
+      if(
+        Number.isFinite(
+          end
+        )
+      ){
 
         element.textContent =
-          countdownText(
-
-            Math.max(
-              0,
-              Math.ceil(
-                (
-                  expiry -
-                  Date.now()
-                ) / 1000
-              )
+          t(
+            (
+              end -
+              Date.now()
             )
-
+            /
+            1000
           );
 
       }
 
-    );
+    }
+  );
 
 }
 
 
-/* =========================
-   API LADEN
-========================= */
+/*
+  ALLE DATEN LADEN
+*/
 
 async function loadAll(
   force = false
 ){
 
   if(
-    state.busy
+    S.busy
+  ){
+    return;
+  }
+
+
+  if(
+    force
+    &&
+    Date.now() -
+    lastManual <
+    MANUAL
   ){
     return;
   }
@@ -2746,338 +4365,319 @@ async function loadAll(
 
   if(force){
 
-    const now =
+    lastManual =
       Date.now();
 
-
-    if(
-      now -
-      lastManualRefresh <
-      MANUAL_COOLDOWN_MS
-    ){
-
-      setText(
-        '#refreshState',
-        'Bitte kurz warten…'
-      );
-
-      return;
-
-    }
-
-
-    lastManualRefresh =
-      now;
-
   }
 
 
-  if(
-    Date.now() <
-    state.blockedUntil
-  ){
-
-    const seconds =
-      Math.ceil(
-        (
-          state.blockedUntil -
-          Date.now()
-        ) / 1000
-      );
-
-
-    setText(
-      '#refreshState',
-      `Rate-Limit-Pause · ${seconds}s`
-    );
-
-
-    return;
-
-  }
-
-
-  state.busy =
+  S.busy =
     true;
 
 
-  setText(
-    '#refreshState',
-    'Aktualisiere…'
-  );
-
-
-  const endpoints = [
-
-    [
-      'profile',
-      '/v1/me',
-      renderProfile
-    ],
-
-    [
-      'buffs',
-      '/v1/me/buffs',
-      renderBuffs
-    ],
-
-    [
-      'shop',
-      '/v1/game/shop',
-      renderShop
-    ],
-
-    [
-      'season',
-      '/v1/game/season',
-      renderSeason
-    ],
-
-    [
-      'skills',
-      '/v1/me/skills',
-      renderSkills
-    ],
-
-    [
-      'blacksmith',
-      '/v1/me/blacksmith',
-      renderSmith
-    ],
-
-    [
-      'dragon',
-      '/v1/me/dragon',
-      renderDragon
-    ],
-
-    [
-      'outpost',
-      '/v1/me/outpost',
-      renderOutpost
-    ],
-
-    [
-      'live',
-      '/v1/game/live',
-      renderLive
-    ]
-
-  ];
+  $('#refreshBtn')
+    .textContent =
+      '…';
 
 
   const errors =
     [];
 
 
-  try{
+  for(
+    const [
+      key,
+      path
+    ]
+    of ENDPOINTS
+  ){
 
-    for(
-      let index = 0;
-      index < endpoints.length;
-      index++
-    ){
+    try{
 
-      const [
-        key,
-        path,
-        renderer
-      ] =
-        endpoints[index];
-
-
-      try{
-
-        state.data[key] =
-          await api(
-            path
-          );
-
-
-        renderer();
-
-      }catch(error){
-
-        errors.push(
-          `${path}: ${
-            error.message ||
-            error
-          }`
+      S.data[key] =
+        await api(
+          path
         );
 
+    }catch(error){
 
-        if(
-          key === 'shop'
-        ){
-
-          const shop =
-            $('#shop');
-
-
-          if(shop){
-
-            shop.innerHTML = `
-
-              <div class="empty">
-
-                Shop konnte nicht geladen werden.
-
-                <br>
-
-                ${esc(
-                  error.message ||
-                  error
-                )}
-
-              </div>
-
-            `;
-
-          }
-
-
-          setText(
-            '#shopCount',
-            '!'
-          );
-
-        }
-
-
-        if(
-          error.rateLimited
-        ){
-
-          break;
-
-        }
-
-      }
+      errors.push(
+        `${path}: ${error.message}`
+      );
 
 
       if(
-        index <
-        endpoints.length - 1
+        error.rate
       ){
-
-        await sleep(
-          BETWEEN_REQUESTS_MS
-        );
-
+        break;
       }
 
     }
 
 
-    updateCountdowns();
+    await sleep(
+      WAIT
+    );
+
+  }
 
 
-    if(
-      errors.length
-    ){
+  S.busy =
+    false;
 
-      showError(
+
+  $('#refreshBtn')
+    .textContent =
+      '↻';
+
+
+  render();
+
+
+  if(
+    errors.length
+  ){
+
+    $('#errorBox')
+      .textContent =
         errors.join(
           '\n'
-        )
+        );
+
+
+    $('#errorBox')
+      .classList
+      .remove(
+        'hidden'
       );
-
-
-      setText(
-
-        '#refreshState',
-
-        state.data.profile
-          ? 'Teilweise aktualisiert'
-          : 'Fehler'
-
-      );
-
-    }
-
-    else{
-
-      hideError();
-
-
-      localStorage.setItem(
-
-        'rm_last_sync',
-
-        String(
-          Date.now()
-        )
-
-      );
-
-
-      setText(
-
-        '#refreshState',
-
-        `Aktuell · ${
-          new Date()
-            .toLocaleTimeString(
-              'de-DE',
-              {
-                hour:
-                  '2-digit',
-
-                minute:
-                  '2-digit',
-
-                second:
-                  '2-digit'
-              }
-            )
-        }`
-
-      );
-
-    }
 
   }
 
-  finally{
+  else{
 
-    state.busy =
-      false;
+    $('#errorBox')
+      .classList
+      .add(
+        'hidden'
+      );
 
   }
+
+
+  localStorage
+    .setItem(
+      'rm_last_sync',
+      Date.now()
+    );
 
 }
 
 
-/* =========================
-   EINSTELLUNGEN
-========================= */
+/*
+  SEITENWECHSEL
+*/
+
+function gotoPage(
+  page
+){
+
+  S.page =
+    Math.max(
+      0,
+      Math.min(
+        4,
+        page
+      )
+    );
+
+
+  $$('.page')
+    .forEach(
+      (
+        element,
+        index
+      ) =>
+
+        element
+          .classList
+          .toggle(
+            'active',
+            index ===
+            S.page
+          )
+    );
+
+
+  $$('.tab')
+    .forEach(
+      (
+        element,
+        index
+      ) =>
+
+        element
+          .classList
+          .toggle(
+            'active',
+            index ===
+            S.page
+          )
+    );
+
+
+  $('#pageDots')
+    .innerHTML =
+
+      Array
+        .from(
+          {
+            length:5
+          },
+          (
+            _,
+            index
+          ) =>
+
+            `<i class="${
+              index === S.page
+                ? 'active'
+                : ''
+            }"></i>`
+
+        )
+        .join('');
+
+
+  window.scrollTo({
+    top:0,
+    behavior:'smooth'
+  });
+
+}
+
+
+/*
+  WISCHEN
+*/
+
+function setupSwipe(){
+
+  let startX =
+    0;
+
+  let startY =
+    0;
+
+
+  $('#pager')
+    .addEventListener(
+      'touchstart',
+      event => {
+
+        startX =
+          event
+            .changedTouches[0]
+            .clientX;
+
+
+        startY =
+          event
+            .changedTouches[0]
+            .clientY;
+
+      },
+      {
+        passive:true
+      }
+    );
+
+
+  $('#pager')
+    .addEventListener(
+      'touchend',
+      event => {
+
+        const dx =
+          event
+            .changedTouches[0]
+            .clientX
+          -
+          startX;
+
+
+        const dy =
+          event
+            .changedTouches[0]
+            .clientY
+          -
+          startY;
+
+
+        /*
+          Nur deutliche horizontale
+          Gesten zählen.
+
+          Normales vertikales Scrollen
+          löst keinen Seitenwechsel aus.
+        */
+
+        if(
+          Math.abs(dx) >
+            65
+          &&
+          Math.abs(dx) >
+            Math.abs(dy)
+            *
+            1.35
+        ){
+
+          gotoPage(
+            S.page
+            +
+            (
+              dx < 0
+                ? 1
+                : -1
+            )
+          );
+
+        }
+
+      },
+      {
+        passive:true
+      }
+    );
+
+}
+
+
+/*
+  EINSTELLUNGEN
+*/
 
 function openSettings(){
 
-  const drawer =
-    $('#drawer');
+  $('#proxyInput')
+    .value =
+      proxy();
 
 
-  if(!drawer){
-    return;
-  }
+  $('#tokenInput')
+    .value =
+      token();
 
 
-  $('#tokenInput').value =
-    token();
+  $('#autoInput')
+    .checked =
+      auto();
 
 
-  $('#proxyInput').value =
-    proxyUrl();
-
-
-  $('#autoInput').checked =
-    autoRefresh();
-
-
-  drawer.classList.add(
-    'open'
-  );
+  $('#drawer')
+    .classList
+    .add(
+      'open'
+    );
 
 }
 
@@ -3085,7 +4685,7 @@ function openSettings(){
 function closeSettings(){
 
   $('#drawer')
-    ?.classList
+    .classList
     .remove(
       'open'
     );
@@ -3093,168 +4693,29 @@ function closeSettings(){
 }
 
 
-function saveSettings(){
+function setupAuto(){
 
-  const newToken =
-    (
-      $('#tokenInput')
-        ?.value ||
-      ''
-    ).trim();
-
-
-  const proxy =
-    (
-      $('#proxyInput')
-        ?.value ||
-      ''
-    )
-      .trim()
-      .replace(
-        /\/+$/,
-        ''
-      );
-
-
-  if(
-    newToken
-  ){
-
-    localStorage.setItem(
-      'rm_token',
-      newToken
-    );
-
-  }
-
-  else{
-
-    localStorage.removeItem(
-      'rm_token'
-    );
-
-  }
-
-
-  if(
-    proxy
-  ){
-
-    localStorage.setItem(
-      'rm_proxy',
-      proxy
-    );
-
-  }
-
-  else{
-
-    localStorage.removeItem(
-      'rm_proxy'
-    );
-
-  }
-
-
-  localStorage.setItem(
-
-    'rm_auto',
-
-    $('#autoInput')
-      ?.checked
-
-      ? '1'
-
-      : '0'
-
-  );
-
-
-  closeSettings();
-
-
-  setupAutoRefresh();
-
-
-  if(
-    newToken &&
-    proxy
-  ){
-
-    loadAll(
-      true
-    );
-
-  }
-
-  else{
-
-    openSettings();
-
-  }
-
-}
-
-
-function forgetToken(){
-
-  localStorage.removeItem(
-    'rm_token'
+  clearInterval(
+    S.autoTimer
   );
 
 
   if(
-    $('#tokenInput')
+    auto()
+    &&
+    token()
+    &&
+    proxy()
   ){
 
-    $('#tokenInput').value =
-      '';
-
-  }
-
-
-  showError(
-    'Token wurde auf diesem Gerät gelöscht.'
-  );
-
-}
-
-
-/* =========================
-   AUTO REFRESH
-========================= */
-
-function setupAutoRefresh(){
-
-  if(
-    state.timer
-  ){
-
-    clearInterval(
-      state.timer
-    );
-
-  }
-
-
-  state.timer =
-    null;
-
-
-  if(
-    autoRefresh() &&
-    token() &&
-    proxyUrl()
-  ){
-
-    state.timer =
+    S.autoTimer =
       setInterval(
-
         () => {
 
           if(
-            document.visibilityState ===
-            'visible'
+            document
+              .visibilityState ===
+              'visible'
           ){
 
             loadAll(
@@ -3264,9 +4725,7 @@ function setupAutoRefresh(){
           }
 
         },
-
-        AUTO_REFRESH_MS
-
+        AUTO
       );
 
   }
@@ -3274,51 +4733,109 @@ function setupAutoRefresh(){
 }
 
 
-function setupCountdownTimer(){
+function save(){
+
+  const proxyValue =
+    $('#proxyInput')
+      .value
+      .trim()
+      .replace(
+        /\/+$/,
+        ''
+      );
+
+
+  const tokenValue =
+    $('#tokenInput')
+      .value
+      .trim();
+
 
   if(
-    state.countdownTimer
+    proxyValue
   ){
 
-    clearInterval(
-      state.countdownTimer
-    );
+    localStorage
+      .setItem(
+        'rm_proxy',
+        proxyValue
+      );
+
+  }
+
+  else{
+
+    localStorage
+      .removeItem(
+        'rm_proxy'
+      );
 
   }
 
 
-  state.countdownTimer =
-    setInterval(
-      updateCountdowns,
-      1000
+  if(
+    tokenValue
+  ){
+
+    localStorage
+      .setItem(
+        'rm_token',
+        tokenValue
+      );
+
+  }
+
+  else{
+
+    localStorage
+      .removeItem(
+        'rm_token'
+      );
+
+  }
+
+
+  localStorage
+    .setItem(
+      'rm_auto',
+
+      $('#autoInput')
+        .checked
+        ? '1'
+        : '0'
     );
+
+
+  closeSettings();
+
+
+  setupAuto();
+
+
+  loadAll(
+    true
+  );
 
 }
 
 
-/* =========================
-   PWA INSTALLATION
-========================= */
+/*
+  APP INSTALLIEREN
+*/
 
 function setupInstall(){
 
-  const standalone =
-
-    window
-      .matchMedia(
-        '(display-mode: standalone)'
-      )
-      .matches
+  if(
+    matchMedia(
+      '(display-mode: standalone)'
+    )
+    .matches
 
     ||
 
-    window.navigator
+    navigator
       .standalone ===
-      true;
-
-
-  if(
-    standalone
+      true
   ){
 
     document.body
@@ -3330,161 +4847,143 @@ function setupInstall(){
   }
 
 
-  window.addEventListener(
-
+  addEventListener(
     'beforeinstallprompt',
-
     event => {
 
       event.preventDefault();
 
 
-      state.installPrompt =
+      S.installPrompt =
         event;
 
 
       $('#installBtn')
-        ?.classList
+        .classList
         .remove(
           'hidden'
         );
 
     }
-
   );
 
 
   $('#installBtn')
-    ?.addEventListener(
-
-      'click',
-
+    .onclick =
       async () => {
 
         if(
-          !state.installPrompt
+          !S.installPrompt
         ){
           return;
         }
 
 
-        state.installPrompt
+        S.installPrompt
           .prompt();
 
 
-        await state
+        await S
           .installPrompt
           .userChoice;
 
 
-        state.installPrompt =
+        S.installPrompt =
           null;
 
 
         $('#installBtn')
-          ?.classList
+          .classList
           .add(
             'hidden'
           );
 
-      }
-
-    );
-
-
-  window.addEventListener(
-
-    'appinstalled',
-
-    () => {
-
-      state.installPrompt =
-        null;
-
-
-      $('#installBtn')
-        ?.classList
-        .add(
-          'hidden'
-        );
-
-    }
-
-  );
+      };
 
 }
 
 
-/* =========================
-   START
-========================= */
+/*
+  START
+*/
 
-window.addEventListener(
-
+addEventListener(
   'load',
-
   () => {
+
+    $$('.tab')
+      .forEach(
+        button => {
+
+          button.onclick =
+            () =>
+              gotoPage(
+                Number(
+                  button.dataset.tab
+                )
+              );
+
+        }
+      );
+
+
+    gotoPage(
+      0
+    );
+
+
+    setupSwipe();
+
 
     setupInstall();
 
 
     $('#settingsBtn')
-      ?.addEventListener(
-        'click',
-        openSettings
-      );
-
-
-    $('#settingsFooter')
-      ?.addEventListener(
-        'click',
-        openSettings
-      );
+      .onclick =
+        openSettings;
 
 
     $('#closeBtn')
-      ?.addEventListener(
-        'click',
-        closeSettings
-      );
+      .onclick =
+        closeSettings;
 
 
     $('#saveBtn')
-      ?.addEventListener(
-        'click',
-        saveSettings
-      );
+      .onclick =
+        save;
 
 
     $('#forgetBtn')
-      ?.addEventListener(
-        'click',
-        forgetToken
-      );
+      .onclick =
+        () => {
+
+          localStorage
+            .removeItem(
+              'rm_token'
+            );
+
+
+          $('#tokenInput')
+            .value =
+              '';
+
+        };
 
 
     $('#refreshBtn')
-      ?.addEventListener(
-
-        'click',
-
+      .onclick =
         () =>
           loadAll(
             true
-          )
-
-      );
+          );
 
 
     $('#drawer')
-      ?.addEventListener(
-
-        'click',
-
+      .onclick =
         event => {
 
           if(
-            event.target?.id ===
+            event.target.id ===
             'drawer'
           ){
 
@@ -3492,57 +4991,17 @@ window.addEventListener(
 
           }
 
-        }
+        };
 
+
+    S.countTimer =
+      setInterval(
+        updateCountdowns,
+        1000
       );
 
 
-    document.addEventListener(
-
-      'visibilitychange',
-
-      () => {
-
-        if(
-          document.visibilityState ===
-            'visible'
-          &&
-          token()
-          &&
-          proxyUrl()
-        ){
-
-          const last =
-            Number(
-              localStorage.getItem(
-                'rm_last_sync'
-              ) || 0
-            );
-
-
-          if(
-            Date.now() -
-            last >
-            45000
-          ){
-
-            loadAll(
-              false
-            );
-
-          }
-
-        }
-
-      }
-
-    );
-
-
-    setupCountdownTimer();
-
-
-    setupAutoRefresh();
+    setupAuto();
 
 
     if(
@@ -3553,7 +5012,7 @@ window.addEventListener(
       navigator
         .serviceWorker
         .register(
-          './service-worker.js?v=5'
+          './service-worker.js?v=6'
         )
         .catch(
           () => {}
@@ -3563,8 +5022,9 @@ window.addEventListener(
 
 
     if(
-      token() &&
-      proxyUrl()
+      token()
+      &&
+      proxy()
     ){
 
       loadAll(
@@ -3580,5 +5040,4 @@ window.addEventListener(
     }
 
   }
-
 );
