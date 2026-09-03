@@ -1,127 +1,108 @@
-const CACHE_NAME =
-  'rittermanager-v5';
+const CACHE =
+  'rittermanager-v6';
 
 
-const APP_SHELL = [
+const ASSETS = [
 
   './',
 
   './index.html',
 
-  './styles.css?v=4',
+  './styles.css?v=6.0.0',
 
-  './app.js?v=5.0.0',
+  './app.js?v=6.0.0',
 
   './manifest.webmanifest?v=4',
 
+  './assets/klausi.jpg',
+
   './assets/icon-192.png',
 
-  './assets/icon-512.png',
-
-  './assets/klausi.jpg'
+  './assets/icon-512.png'
 
 ];
 
 
 self.addEventListener(
-
   'install',
-
   event => {
+
+    self.skipWaiting();
 
     event.waitUntil(
 
       caches
         .open(
-          CACHE_NAME
+          CACHE
         )
         .then(
           cache =>
             cache.addAll(
-              APP_SHELL
+              ASSETS
             )
         )
 
     );
 
-
-    self.skipWaiting();
-
   }
-
 );
 
 
 self.addEventListener(
-
   'activate',
-
   event => {
 
     event.waitUntil(
+      (
+        async () => {
 
-      caches
-        .keys()
-        .then(
+          for(
+            const key
+            of await caches.keys()
+          ){
 
-          keys =>
-            Promise.all(
+            if(
+              key !== CACHE
+            ){
 
-              keys
+              await caches.delete(
+                key
+              );
 
-                .filter(
-                  key =>
-                    key !==
-                    CACHE_NAME
-                )
+            }
 
-                .map(
-                  key =>
-                    caches.delete(
-                      key
-                    )
-                )
+          }
 
-            )
+          await self.clients.claim();
 
-        )
-
+        }
+      )()
     );
 
-
-    self.clients.claim();
-
   }
-
 );
 
 
 self.addEventListener(
-
   'fetch',
-
   event => {
 
-    const request =
-      event.request;
-
-
-    const url =
-      new URL(
-        request.url
-      );
-
-
     if(
-      request.method !==
+      event.request.method !==
       'GET'
     ){
       return;
     }
 
 
+    const url =
+      new URL(
+        event.request.url
+      );
+
+
     /*
-      API niemals aus dem Cache.
+      API niemals cachen.
     */
 
     if(
@@ -135,70 +116,54 @@ self.addEventListener(
 
 
     /*
-      App-Dateien:
-      Netzwerk zuerst.
-
-      Dadurch wird bei GitHub Pages
-      wirklich die neue Version geladen.
+      Bei den App-Dateien immer zuerst
+      die aktuelle GitHub-Version laden.
     */
 
     event.respondWith(
 
       fetch(
-        request,
+        event.request,
         {
           cache:
             'no-store'
         }
       )
 
-        .then(
+      .then(
+        response => {
 
-          response => {
+          if(
+            response.ok
+          ){
 
-            if(
-              response &&
-              response.ok
-            ){
-
-              const copy =
-                response.clone();
-
-
-              caches
-                .open(
-                  CACHE_NAME
-                )
-                .then(
-
-                  cache =>
-                    cache.put(
-                      request,
-                      copy
-                    )
-
-                );
-
-            }
-
-
-            return response;
+            caches
+              .open(
+                CACHE
+              )
+              .then(
+                cache =>
+                  cache.put(
+                    event.request,
+                    response.clone()
+                  )
+              );
 
           }
 
-        )
+          return response;
 
-        .catch(
+        }
+      )
 
-          () =>
-            caches.match(
-              request
-            )
-
-        )
+      .catch(
+        () =>
+          caches.match(
+            event.request
+          )
+      )
 
     );
 
   }
-
 );
