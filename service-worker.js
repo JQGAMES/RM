@@ -1,81 +1,116 @@
 const CACHE_NAME =
-  'rittermanager-v4';
+  'rittermanager-v5';
+
 
 const APP_SHELL = [
+
   './',
+
   './index.html',
+
   './styles.css?v=4',
-  './app.js?v=4.0.0',
+
+  './app.js?v=5.0.0',
+
   './manifest.webmanifest?v=4',
+
   './assets/icon-192.png',
+
   './assets/icon-512.png',
+
   './assets/klausi.jpg'
+
 ];
 
+
 self.addEventListener(
+
   'install',
-  event=>{
+
+  event => {
 
     event.waitUntil(
+
       caches
         .open(
           CACHE_NAME
         )
         .then(
-          cache=>
+          cache =>
             cache.addAll(
               APP_SHELL
             )
         )
+
     );
 
+
     self.skipWaiting();
+
   }
+
 );
 
+
 self.addEventListener(
+
   'activate',
-  event=>{
+
+  event => {
 
     event.waitUntil(
+
       caches
         .keys()
         .then(
-          keys=>
+
+          keys =>
             Promise.all(
+
               keys
 
                 .filter(
-                  key=>
+                  key =>
                     key !==
                     CACHE_NAME
                 )
 
                 .map(
-                  key=>
+                  key =>
                     caches.delete(
                       key
                     )
                 )
+
             )
+
         )
+
     );
 
+
     self.clients.claim();
+
   }
+
 );
 
+
 self.addEventListener(
+
   'fetch',
-  event=>{
+
+  event => {
 
     const request =
       event.request;
+
 
     const url =
       new URL(
         request.url
       );
+
 
     if(
       request.method !==
@@ -83,6 +118,11 @@ self.addEventListener(
     ){
       return;
     }
+
+
+    /*
+      API niemals aus dem Cache.
+    */
 
     if(
       url.hostname
@@ -93,38 +133,72 @@ self.addEventListener(
       return;
     }
 
+
+    /*
+      App-Dateien:
+      Netzwerk zuerst.
+
+      Dadurch wird bei GitHub Pages
+      wirklich die neue Version geladen.
+    */
+
     event.respondWith(
 
-      fetch(request)
+      fetch(
+        request,
+        {
+          cache:
+            'no-store'
+        }
+      )
 
         .then(
-          response=>{
 
-            const copy =
-              response.clone();
+          response => {
 
-            caches
-              .open(
-                CACHE_NAME
-              )
-              .then(
-                cache=>
-                  cache.put(
-                    request,
-                    copy
-                  )
-              );
+            if(
+              response &&
+              response.ok
+            ){
+
+              const copy =
+                response.clone();
+
+
+              caches
+                .open(
+                  CACHE_NAME
+                )
+                .then(
+
+                  cache =>
+                    cache.put(
+                      request,
+                      copy
+                    )
+
+                );
+
+            }
+
 
             return response;
+
           }
+
         )
 
         .catch(
-          ()=>
+
+          () =>
             caches.match(
               request
             )
+
         )
+
     );
+
   }
+
 );
