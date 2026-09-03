@@ -15,57 +15,200 @@ const MANUAL_COOLDOWN_MS = 8000;
 
 let lastManualRefresh = 0;
 
+
+/*
+  Offizieller regelmäßiger Wochenplan
+  aus der Knight-Manager-API-Dokumentation.
+*/
+
+const WEEKLY_EVENTS = [
+
+  {
+    day: 1,
+    key: 'hunting_monday',
+    icon: '🏹',
+    name: 'Jagd-Montag',
+    desc: 'Garantiertes Jagdturnier jede Stunde + doppelter Preispool.'
+  },
+
+  {
+    day: 2,
+    key: 'funfair',
+    icon: '🎪',
+    name: 'Jahrmarkt',
+    desc: 'Glücksrad mit Gegenstands-Preisen.'
+  },
+
+  {
+    day: 3,
+    key: 'combat_division',
+    icon: '🛡️',
+    name: 'Kampfklassen-Auswertung',
+    desc: 'Mittwoch um 12:01 CET.'
+  },
+
+  {
+    day: 3,
+    key: 'combat_tournament_wednesday',
+    icon: '⚔️',
+    name: 'Kampfturnier-Mittwoch',
+    desc: 'Garantiertes Kampfturnier jede Stunde + doppelter Preispool.'
+  },
+
+  {
+    day: 4,
+    key: 'double_thursday',
+    icon: '🏆',
+    name: 'Doppel-Ruhm',
+    desc: 'Doppelter Ruhm aus Kämpfen.'
+  },
+
+  {
+    day: 5,
+    key: 'knight_games',
+    icon: '🏰',
+    name: 'Ritterspiele – Registrierung',
+    desc: 'Freitag: Registrierung.'
+  },
+
+  {
+    day: 6,
+    key: 'knight_games',
+    icon: '⚔️',
+    name: 'Ritterspiele – Kämpfe',
+    desc: 'Samstag: Kämpfe.'
+  },
+
+  {
+    day: 0,
+    key: 'knight_games',
+    icon: '👑',
+    name: 'Ritterspiele – Siegerehrung',
+    desc: 'Sonntag: Siegerehrung und Belohnungen.'
+  }
+
+];
+
+
 function esc(v){
-  return String(v ?? '').replace(/[&<>"']/g,m=>({
-    '&':'&amp;',
-    '<':'&lt;',
-    '>':'&gt;',
-    '"':'&quot;',
-    "'":'&#39;'
-  }[m]));
+
+  return String(v ?? '')
+    .replace(
+      /[&<>"']/g,
+      m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[m])
+    );
+
 }
 
+
 function fmt(v){
-  if(v === null || v === undefined || v === ''){
+
+  if(
+    v === null ||
+    v === undefined ||
+    v === ''
+  ){
     return '–';
   }
 
-  if(typeof v === 'number'){
-    return new Intl.NumberFormat('de-DE').format(v);
+  if(
+    typeof v === 'number'
+  ){
+    return new Intl.NumberFormat(
+      'de-DE'
+    ).format(v);
   }
 
   return String(v);
+
 }
 
-function setText(sel,val){
-  const el = $(sel);
+
+function setText(
+  selector,
+  value
+){
+
+  const el =
+    $(selector);
 
   if(el){
-    el.textContent = val ?? '–';
+    el.textContent =
+      value ?? '–';
   }
+
 }
+
 
 function token(){
-  return (localStorage.getItem('rm_token') || '').trim();
+
+  return (
+    localStorage.getItem(
+      'rm_token'
+    ) || ''
+  ).trim();
+
 }
+
 
 function proxyUrl(){
-  return (localStorage.getItem('rm_proxy') || '')
+
+  return (
+    localStorage.getItem(
+      'rm_proxy'
+    ) || ''
+  )
     .trim()
-    .replace(/\/+$/,'');
+    .replace(
+      /\/+$/,
+      ''
+    );
+
 }
+
 
 function autoRefresh(){
-  return localStorage.getItem('rm_auto') !== '0';
+
+  return (
+    localStorage.getItem(
+      'rm_auto'
+    ) !== '0'
+  );
+
 }
+
 
 function sleep(ms){
+
   return new Promise(
-    resolve=>setTimeout(resolve,ms)
+    resolve =>
+      setTimeout(
+        resolve,
+        ms
+      )
   );
+
 }
 
+
+/*
+  Knight-Manager liefert echte Antworten
+  teilweise als:
+
+  {
+    success: true,
+    data: { ... }
+  }
+*/
+
 function unwrap(body){
+
   if(
     body &&
     typeof body === 'object' &&
@@ -75,40 +218,60 @@ function unwrap(body){
       'data'
     )
   ){
+
     return body.data;
+
   }
 
   return body;
+
 }
 
+
 function showError(text){
-  const box = $('#errorBox');
+
+  const box =
+    $('#errorBox');
 
   if(!box){
     return;
   }
 
-  box.textContent = text;
-  box.classList.remove('hidden');
+  box.textContent =
+    text;
+
+  box.classList.remove(
+    'hidden'
+  );
+
 }
+
 
 function hideError(){
+
   $('#errorBox')
     ?.classList
-    .add('hidden');
+    .add(
+      'hidden'
+    );
+
 }
 
+
 function parseRetrySeconds(text){
-  const m =
+
+  const match =
     String(text || '')
       .match(
         /try again in\s+(\d+)\s+seconds?/i
       );
 
-  return m
-    ? Number(m[1])
+  return match
+    ? Number(match[1])
     : null;
+
 }
+
 
 async function api(path){
 
@@ -116,7 +279,8 @@ async function api(path){
     Date.now() <
     state.blockedUntil
   ){
-    const sec =
+
+    const seconds =
       Math.ceil(
         (
           state.blockedUntil -
@@ -124,68 +288,96 @@ async function api(path){
         ) / 1000
       );
 
-    const err =
+    const error =
       new Error(
-        `Rate-Limit-Pause: noch ${sec} Sekunden.`
+        `Rate-Limit-Pause: noch ${seconds} Sekunden.`
       );
 
-    err.rateLimited = true;
+    error.rateLimited =
+      true;
 
-    throw err;
+    throw error;
+
   }
 
+
   if(!token()){
+
     throw new Error(
       'Kein API-Token gespeichert.'
     );
+
   }
 
+
   if(!proxyUrl()){
+
     throw new Error(
       'Keine Cloudflare-Worker-Adresse gespeichert.'
     );
+
   }
+
 
   let response;
 
+
   try{
+
     response =
       await fetch(
-        proxyUrl()+path,
-        {
-          method:'GET',
 
-          headers:{
+        proxyUrl() + path,
+
+        {
+          method: 'GET',
+
+          headers: {
+
             'Authorization':
               `Bearer ${token()}`,
 
             'Accept':
               'application/json'
+
           },
 
-          cache:'no-store'
+          cache:
+            'no-store'
+
         }
+
       );
 
-  }catch(e){
+  }catch(error){
 
     throw new Error(
-      `Worker nicht erreichbar: ${e?.message || e}`
+      `Worker nicht erreichbar: ${
+        error?.message ||
+        error
+      }`
     );
+
   }
+
 
   const raw =
     await response.text();
 
+
   let body =
     null;
 
+
   try{
+
     body =
       raw
         ? JSON.parse(raw)
         : null;
+
   }catch{}
+
 
   if(!response.ok){
 
@@ -195,81 +387,124 @@ async function api(path){
       raw ||
       'keine Servermeldung';
 
+
     if(
       response.status === 429
     ){
+
       const retry =
         parseRetrySeconds(
           detail
         ) ?? 60;
 
+
       state.blockedUntil =
         Date.now() +
         retry * 1000;
 
-      const err =
+
+      const error =
         new Error(
           `HTTP 429 – ${detail}`
         );
 
-      err.rateLimited = true;
 
-      throw err;
+      error.rateLimited =
+        true;
+
+
+      throw error;
+
     }
 
+
     throw new Error(
-      `${path}: HTTP ${response.status} – ${detail}`
+      `${path}: HTTP ${
+        response.status
+      } – ${
+        detail
+      }`
     );
+
   }
+
 
   if(
     !body ||
     typeof body !== 'object'
   ){
+
     throw new Error(
       `${path}: ungültige JSON-Antwort.`
     );
+
   }
 
-  return unwrap(body);
+
+  return unwrap(
+    body
+  );
+
 }
 
-function countdownText(totalSeconds){
 
-  const s =
+/* =========================
+   COUNTDOWNS
+========================= */
+
+function countdownText(
+  totalSeconds
+){
+
+  const seconds =
     Math.max(
       0,
       Math.ceil(
-        Number(totalSeconds) || 0
+        Number(
+          totalSeconds
+        ) || 0
       )
     );
 
-  const h =
+
+  const hours =
     Math.floor(
-      s / 3600
+      seconds / 3600
     );
 
-  const m =
+
+  const minutes =
     Math.floor(
-      (s % 3600) / 60
+      (
+        seconds % 3600
+      ) / 60
     );
 
-  const r =
-    s % 60;
 
-  return h > 0
+  const rest =
+    seconds % 60;
 
-    ? (
-      `${h}:` +
-      `${String(m).padStart(2,'0')}:` +
-      `${String(r).padStart(2,'0')}`
-    )
 
-    : (
-      `${m}:` +
-      `${String(r).padStart(2,'0')}`
+  if(
+    hours > 0
+  ){
+
+    return (
+      `${hours}:` +
+      `${String(minutes).padStart(2,'0')}:` +
+      `${String(rest).padStart(2,'0')}`
     );
+
+  }
+
+
+  return (
+    `${minutes}:` +
+    `${String(rest).padStart(2,'0')}`
+  );
+
 }
+
 
 function expiresAtMs(obj){
 
@@ -280,30 +515,43 @@ function expiresAtMs(obj){
     return null;
   }
 
+
   const absolute =
     obj.expires_at ??
     obj.finishes_at;
+
 
   if(
     absolute !== undefined &&
     absolute !== null
   ){
 
-    const n =
-      Number(absolute);
+    const number =
+      Number(
+        absolute
+      );
+
 
     if(
-      Number.isFinite(n)
+      Number.isFinite(
+        number
+      )
     ){
-      return n > 2e12
-        ? n
-        : n * 1000;
+
+      return (
+        number > 2e12
+          ? number
+          : number * 1000
+      );
+
     }
+
 
     const parsed =
       Date.parse(
         absolute
       );
+
 
     if(
       Number.isFinite(
@@ -312,7 +560,9 @@ function expiresAtMs(obj){
     ){
       return parsed;
     }
+
   }
+
 
   if(
     obj.expires_datetime
@@ -323,6 +573,7 @@ function expiresAtMs(obj){
         obj.expires_datetime
       );
 
+
     if(
       Number.isFinite(
         parsed
@@ -330,7 +581,9 @@ function expiresAtMs(obj){
     ){
       return parsed;
     }
+
   }
+
 
   if(
     Number.isFinite(
@@ -339,13 +592,16 @@ function expiresAtMs(obj){
       )
     )
   ){
+
     return (
       Date.now() +
       Number(
         obj.remaining_seconds
       ) * 1000
     );
+
   }
+
 
   if(
     Number.isFinite(
@@ -354,295 +610,420 @@ function expiresAtMs(obj){
       )
     )
   ){
+
     return (
       Date.now() +
       Number(
         obj.remaining_minutes
       ) * 60000
     );
+
   }
 
+
   return null;
+
 }
 
-function effectIcon(type,debuff){
+
+/* =========================
+   PROFIL
+========================= */
+
+function renderProfile(){
+
+  const profile =
+    state.data.profile || {};
+
+
+  setText(
+    '#knightName',
+    profile.name ||
+    'Mein Ritter'
+  );
+
+
+  setText(
+    '#level',
+    fmt(
+      profile.level
+    )
+  );
+
+
+  setText(
+    '#gold',
+    fmt(
+      profile
+        .currencies
+        ?.gold
+    )
+  );
+
+
+  setText(
+    '#diamonds',
+    fmt(
+      profile
+        .currencies
+        ?.diamonds
+    )
+  );
+
+
+  setText(
+    '#honor',
+    fmt(
+      profile
+        .ranking
+        ?.honor
+    )
+  );
+
+
+  setText(
+    '#rank',
+    fmt(
+      profile
+        .ranking
+        ?.position
+      ??
+      profile
+        .rank
+        ?.number
+    )
+  );
+
+
+  setText(
+    '#sword',
+    fmt(
+      profile
+        .upgrades
+        ?.sword
+    )
+  );
+
+
+  setText(
+    '#armor',
+    fmt(
+      profile
+        .upgrades
+        ?.armor
+    )
+  );
+
+
+  setText(
+    '#shelter',
+    fmt(
+      profile
+        .upgrades
+        ?.shelter
+    )
+  );
+
+
+  setText(
+    '#adventure',
+    fmt(
+      profile
+        .progress
+        ?.adventure
+    )
+  );
+
+
+  setText(
+    '#tower',
+    fmt(
+      profile
+        .progress
+        ?.tower
+    )
+  );
+
+
+  setText(
+    '#huntLevel',
+    fmt(
+      profile
+        .hunting
+        ?.level
+    )
+  );
+
+
+  setText(
+    '#huntKills',
+    fmt(
+      profile
+        .hunting
+        ?.kills
+    )
+  );
+
+
+  setText(
+    '#huntPoints',
+    fmt(
+      profile
+        .hunting
+        ?.points
+    )
+  );
+
+
+  setText(
+    '#cooking',
+    fmt(
+      profile
+        .crafting
+        ?.cooking
+    )
+  );
+
+
+  setText(
+    '#engineering',
+    fmt(
+      profile
+        .crafting
+        ?.engineering
+    )
+  );
+
+
+  const titleParts =
+    [];
+
+
+  if(
+    profile.rank?.title
+  ){
+
+    titleParts.push(
+      profile.rank.title
+    );
+
+  }
+
+
+  if(
+    profile.title
+  ){
+
+    titleParts.push(
+      profile.title
+    );
+
+  }
+
+
+  if(
+    profile
+      .ranking
+      ?.division !==
+      undefined
+  ){
+
+    titleParts.push(
+      `Division ${
+        profile
+          .ranking
+          .division
+      }`
+    );
+
+  }
+
+
+  setText(
+    '#rankTitle',
+    titleParts.join(
+      ' · '
+    ) ||
+    'Ritterprofil'
+  );
+
+
+  setText(
+
+    '#location',
+
+    profile.status?.location
+
+      ? (
+        `📍 ${
+          profile.status.location
+        }`
+      )
+
+      : (
+        profile.status?.mode === 0
+
+          ? '📍 Unterwegs'
+
+          : 'Standort unbekannt'
+      )
+
+  );
+
+
+  const online =
+    $('#online');
+
+
+  if(online){
+
+    online.textContent =
+      profile.status?.online
+        ? 'ONLINE'
+        : 'OFFLINE';
+
+
+    online.className =
+      profile.status?.online
+        ? 'online'
+        : 'online offline';
+
+  }
+
+}
+
+
+/* =========================
+   SAISON
+========================= */
+
+function renderSeason(){
+
+  const season =
+    state.data.season || {};
+
+
+  setText(
+
+    '#season',
+
+    season.season !==
+    undefined
+
+      ? (
+        `Saison ${
+          season.season
+        } · Tag ${
+          season.day
+        }${
+          season.paused
+            ? ' · pausiert'
+            : ''
+        }`
+      )
+
+      : 'Persönliche Übersicht'
+
+  );
+
+}
+
+
+/* =========================
+   BUFFS
+========================= */
+
+function effectIcon(
+  type,
+  debuff
+){
 
   if(debuff){
     return '☠️';
   }
 
+
   const icons = {
-    aim:'🎯',
-    all_hunt:'🏹',
-    breakthrough:'💥',
-    fix_hp:'❤️',
-    forest_xp:'🌲',
-    hunting_skills:'🦌',
-    ice:'❄️',
-    loot_bonus:'🎁',
-    marks:'🐾',
-    max_hp:'💚',
-    str:'💪',
-    threat:'⚠️'
+
+    aim:
+      '🎯',
+
+    all_hunt:
+      '🏹',
+
+    breakthrough:
+      '💥',
+
+    fix_hp:
+      '❤️',
+
+    forest_xp:
+      '🌲',
+
+    hunting_skills:
+      '🦌',
+
+    ice:
+      '❄️',
+
+    loot_bonus:
+      '🎁',
+
+    marks:
+      '🐾',
+
+    max_hp:
+      '💚',
+
+    str:
+      '💪',
+
+    threat:
+      '⚠️',
+
+    toxic:
+      '☠️',
+
+    forest_curse:
+      '☠️'
+
   };
+
 
   return (
     icons[type] ||
     '✨'
   );
+
 }
 
-function currencyIcon(currency){
-
-  const c =
-    String(
-      currency || ''
-    ).toLowerCase();
-
-  if(
-    c.includes('diamond')
-  ){
-    return '💎';
-  }
-
-  if(
-    c.includes('gold')
-  ){
-    return '🪙';
-  }
-
-  if(
-    c.includes('arrow')
-  ){
-    return '🏹';
-  }
-
-  return '◈';
-}
-
-function renderProfile(){
-
-  const p =
-    state.data.profile || {};
-
-  setText(
-    '#knightName',
-    p.name ||
-    'Mein Ritter'
-  );
-
-  setText(
-    '#level',
-    fmt(p.level)
-  );
-
-  setText(
-    '#gold',
-    fmt(
-      p.currencies?.gold
-    )
-  );
-
-  setText(
-    '#diamonds',
-    fmt(
-      p.currencies?.diamonds
-    )
-  );
-
-  setText(
-    '#honor',
-    fmt(
-      p.ranking?.honor
-    )
-  );
-
-  setText(
-    '#rank',
-    fmt(
-      p.ranking?.position ??
-      p.rank?.number
-    )
-  );
-
-  setText(
-    '#sword',
-    fmt(
-      p.upgrades?.sword
-    )
-  );
-
-  setText(
-    '#armor',
-    fmt(
-      p.upgrades?.armor
-    )
-  );
-
-  setText(
-    '#shelter',
-    fmt(
-      p.upgrades?.shelter
-    )
-  );
-
-  setText(
-    '#adventure',
-    fmt(
-      p.progress?.adventure
-    )
-  );
-
-  setText(
-    '#tower',
-    fmt(
-      p.progress?.tower
-    )
-  );
-
-  setText(
-    '#huntLevel',
-    fmt(
-      p.hunting?.level
-    )
-  );
-
-  setText(
-    '#huntKills',
-    fmt(
-      p.hunting?.kills
-    )
-  );
-
-  setText(
-    '#huntPoints',
-    fmt(
-      p.hunting?.points
-    )
-  );
-
-  setText(
-    '#cooking',
-    fmt(
-      p.crafting?.cooking
-    )
-  );
-
-  setText(
-    '#engineering',
-    fmt(
-      p.crafting?.engineering
-    )
-  );
-
-  const parts = [];
-
-  if(
-    p.rank?.title
-  ){
-    parts.push(
-      p.rank.title
-    );
-  }
-
-  if(
-    p.title
-  ){
-    parts.push(
-      p.title
-    );
-  }
-
-  if(
-    p.ranking?.division !== undefined
-  ){
-    parts.push(
-      `Division ${p.ranking.division}`
-    );
-  }
-
-  setText(
-    '#rankTitle',
-    parts.join(' · ') ||
-    'Ritterprofil'
-  );
-
-  setText(
-    '#location',
-    p.status?.location
-
-      ? `📍 ${p.status.location}`
-
-      : (
-        p.status?.mode === 0
-          ? '📍 Unterwegs'
-          : 'Standort unbekannt'
-      )
-  );
-
-  const online =
-    $('#online');
-
-  if(online){
-
-    online.textContent =
-      p.status?.online
-        ? 'ONLINE'
-        : 'OFFLINE';
-
-    online.className =
-      p.status?.online
-        ? 'online'
-        : 'online offline';
-  }
-}
-
-function renderSeason(){
-
-  const s =
-    state.data.season || {};
-
-  setText(
-    '#season',
-    s.season !== undefined
-
-      ? (
-        `Saison ${s.season}` +
-        ` · Tag ${s.day}` +
-        (
-          s.paused
-            ? ' · pausiert'
-            : ''
-        )
-      )
-
-      : 'Persönliche Übersicht'
-  );
-}
 
 function renderBuffs(){
 
-  const d =
+  const data =
     state.data.buffs || {};
 
-  const el =
+
+  const container =
     $('#buffs');
 
-  if(!el){
+
+  if(!container){
     return;
   }
 
-  const all = [
+
+  const effects = [
 
     ...(
       Array.isArray(
-        d.buffs
+        data.buffs
       )
 
-        ? d.buffs.map(
-          x=>({
-            ...x,
-            debuff:false
+        ? data.buffs.map(
+          effect => ({
+            ...effect,
+            debuff: false
           })
         )
 
@@ -651,383 +1032,641 @@ function renderBuffs(){
 
     ...(
       Array.isArray(
-        d.debuffs
+        data.debuffs
       )
 
-        ? d.debuffs.map(
-          x=>({
-            ...x,
-            debuff:true
+        ? data.debuffs.map(
+          effect => ({
+            ...effect,
+            debuff: true
           })
         )
 
         : []
     )
+
   ];
+
 
   setText(
     '#buffCount',
-    all.length
+    effects.length
   );
 
+
   if(
-    !all.length
+    effects.length === 0
   ){
-    el.innerHTML =
-      '<div class="empty">' +
-      'Keine aktiven Wirkungen oder Debuffs.' +
-      '</div>';
+
+    container.innerHTML =
+      '<div class="empty">Keine aktiven Buffs oder Debuffs.</div>';
 
     return;
+
   }
 
-  el.innerHTML =
-    all
 
-      .sort(
-        (a,b)=>
-          (
-            expiresAtMs(a) ||
-            Infinity
-          ) -
-          (
-            expiresAtMs(b) ||
-            Infinity
-          )
+  effects.sort(
+    (
+      a,
+      b
+    ) =>
+      (
+        expiresAtMs(a) ||
+        Infinity
       )
+      -
+      (
+        expiresAtMs(b) ||
+        Infinity
+      )
+  );
 
-      .map(
-        effect=>{
 
-          const expiry =
-            expiresAtMs(
-              effect
-            );
+  container.innerHTML =
+    effects.map(
 
-          const remaining =
-            expiry
+      effect => {
 
-              ? Math.max(
-                0,
-                Math.ceil(
-                  (
-                    expiry -
-                    Date.now()
-                  ) / 1000
-                )
-              )
-
-              : null;
-
-          const source =
+        const expiry =
+          expiresAtMs(
             effect
-              .source_item
-              ?.name
+          );
 
-              ? (
-                `Quelle: ` +
+
+        const remaining =
+          expiry
+
+            ? Math.max(
+              0,
+              Math.ceil(
+                (
+                  expiry -
+                  Date.now()
+                ) / 1000
+              )
+            )
+
+            : null;
+
+
+        const source =
+          effect
+            .source_item
+            ?.name
+
+            ? (
+              `Quelle: ${
                 esc(
                   effect
                     .source_item
                     .name
                 )
-              )
+              }`
+            )
 
-              : '';
+            : '';
 
-          const value =
-            effect.value !==
-            undefined
 
-              ? (
-                `Wert: ` +
+        const value =
+          effect.value !==
+          undefined
+
+            ? (
+              `Wert: ${
                 fmt(
                   effect.value
                 )
-              )
+              }`
+            )
 
-              : '';
+            : '';
 
-          return `
-            <div class="effectItem">
 
-              <div class="effectTop">
+        return `
+          <div class="effectItem">
 
-                <div class="effectName">
+            <div class="effectTop">
 
-                  ${effectIcon(
-                    effect.type,
-                    effect.debuff
-                  )}
+              <div class="effectName">
 
-                  ${esc(
-                    effect.name ||
-                    effect.type ||
-                    'Wirkung'
-                  )}
+                ${effectIcon(
+                  effect.type,
+                  effect.debuff
+                )}
 
-                </div>
-
-                <div
-                  class="timer"
-                  ${
-                    expiry
-                      ? `data-expires-at="${expiry}"`
-                      : ''
-                  }
-                >
-
-                  ${
-                    remaining !== null
-
-                      ? countdownText(
-                          remaining
-                        )
-
-                      : (
-                        effect.remaining_minutes !== undefined
-
-                          ? `${fmt(
-                              effect.remaining_minutes
-                            )} Min`
-
-                          : '–'
-                      )
-                  }
-
-                </div>
+                ${esc(
+                  effect.name ||
+                  effect.type ||
+                  'Wirkung'
+                )}
 
               </div>
 
-              <div class="effectDesc">
 
-                ${esc(
-                  effect.description ||
-                  ''
-                )}
+              <div
+                class="timer"
+                ${
+                  expiry
+                    ? `data-expires-at="${expiry}"`
+                    : ''
+                }
+              >
 
                 ${
-                  value ||
-                  source
-
-                    ? `<br>${
-                        [
-                          value,
-                          source
-                        ]
-                        .filter(Boolean)
-                        .join(' · ')
-                      }`
-
-                    : ''
+                  remaining !== null
+                    ? countdownText(
+                        remaining
+                      )
+                    : '–'
                 }
 
               </div>
 
             </div>
-          `;
-        }
-      )
 
-      .join('');
+
+            <div class="effectDesc">
+
+              ${esc(
+                effect.description ||
+                ''
+              )}
+
+              ${
+                value ||
+                source
+
+                  ? `<br>${
+                      [
+                        value,
+                        source
+                      ]
+                      .filter(
+                        Boolean
+                      )
+                      .join(
+                        ' · '
+                      )
+                    }`
+
+                  : ''
+              }
+
+            </div>
+
+          </div>
+        `;
+
+      }
+
+    ).join('');
+
 }
 
-function normalizeShopOffers(d){
+
+/* =========================
+   SHOP
+========================= */
+
+/*
+  Die offizielle API dokumentiert:
+
+  {
+    offers: [
+      {
+        id,
+        item_id,
+        item_name,
+        price,
+        currency
+      }
+    ]
+  }
+
+  Zusätzlich suchen wir rekursiv nach Offers,
+  damit auch leicht abweichende Wrapper funktionieren.
+*/
+
+function findOfferArray(
+  node,
+  depth = 0
+){
 
   if(
-    Array.isArray(d)
+    depth > 5 ||
+    node === null ||
+    node === undefined
   ){
-    return d;
+
+    return [];
+
   }
+
 
   if(
     Array.isArray(
-      d?.offers
+      node
     )
   ){
-    return d.offers;
-  }
 
-  if(
-    Array.isArray(
-      d?.items
-    )
-  ){
-    return d.items;
-  }
-
-  if(
-    Array.isArray(
-      d?.shop?.offers
-    )
-  ){
-    return d.shop.offers;
-  }
-
-  if(
-    Array.isArray(
-      d?.shop?.items
-    )
-  ){
-    return d.shop.items;
-  }
-
-  if(
-    d &&
-    typeof d === 'object'
-  ){
-
-    const values =
-      Object.values(d);
-
-    const arrayCandidate =
-      values.find(
-        value=>
-          Array.isArray(value)
+    const looksLikeOffers =
+      node.some(
+        item =>
+          item &&
+          typeof item === 'object' &&
+          (
+            'price' in item ||
+            'item_name' in item ||
+            'item_id' in item
+          )
       );
 
+
     if(
-      arrayCandidate
+      looksLikeOffers
     ){
-      return arrayCandidate;
+
+      return node;
+
     }
+
+
+    for(
+      const child
+      of node
+    ){
+
+      const found =
+        findOfferArray(
+          child,
+          depth + 1
+        );
+
+
+      if(
+        found.length
+      ){
+
+        return found;
+
+      }
+
+    }
+
+
+    return [];
+
   }
 
+
+  if(
+    typeof node !== 'object'
+  ){
+
+    return [];
+
+  }
+
+
+  const directKeys = [
+
+    'offers',
+
+    'items',
+
+    'shop_offers',
+
+    'shopItems',
+
+    'shop_items',
+
+    'products'
+
+  ];
+
+
+  for(
+    const key
+    of directKeys
+  ){
+
+    if(
+      Array.isArray(
+        node[key]
+      )
+    ){
+
+      return node[key];
+
+    }
+
+  }
+
+
+  for(
+    const value
+    of Object.values(
+      node
+    )
+  ){
+
+    const found =
+      findOfferArray(
+        value,
+        depth + 1
+      );
+
+
+    if(
+      found.length
+    ){
+
+      return found;
+
+    }
+
+  }
+
+
   return [];
+
 }
+
+
+function currencyIcon(
+  currency
+){
+
+  const text =
+    String(
+      currency ||
+      ''
+    ).toLowerCase();
+
+
+  if(
+    text.includes(
+      'diamond'
+    )
+  ){
+    return '💎';
+  }
+
+
+  if(
+    text.includes(
+      'gold'
+    )
+  ){
+    return '🪙';
+  }
+
+
+  if(
+    text.includes(
+      'arrow'
+    )
+  ){
+    return '🏹';
+  }
+
+
+  return '◈';
+
+}
+
 
 function renderShop(){
 
-  const d =
+  const data =
     state.data.shop;
 
-  const el =
+
+  const container =
     $('#shop');
 
-  if(!el){
+
+  if(!container){
     return;
   }
 
+
   const offers =
-    normalizeShopOffers(d);
+    findOfferArray(
+      data
+    );
+
 
   setText(
     '#shopCount',
     offers.length
   );
 
+
   if(
-    !offers.length
+    offers.length === 0
   ){
 
-    const keys =
-      d &&
-      typeof d === 'object'
-
-        ? Object.keys(d)
-
-        : [];
-
-    el.innerHTML = `
-      <div class="empty">
-
-        Shop-Antwort erhalten,
-        aber kein Angebot erkannt.
-
-        ${
-          keys.length
-
-            ? `<br>API-Felder: ${
-                esc(
-                  keys.join(', ')
-                )
-              }`
-
-            : ''
-        }
-
-      </div>
-    `;
+    container.innerHTML =
+      '<div class="empty">Der Shop ist erreichbar, aber die API meldet aktuell keine Angebote.</div>';
 
     return;
+
   }
 
-  el.innerHTML =
-    offers
 
-      .map(
-        offer=>{
+  container.innerHTML =
+    offers.map(
 
-          const name =
-            offer.item_name ??
-            offer.name ??
-            offer.title ??
-            offer.item?.name ??
-            `Item ${
-              offer.item_id ??
-              offer.id ??
-              ''
-            }`;
+      offer => {
 
-          const price =
-            offer.price ??
-            offer.cost ??
-            offer.amount ??
-            offer.value;
+        const item =
+          (
+            offer.item &&
+            typeof offer.item ===
+            'object'
+          )
 
-          const currency =
-            offer.currency ??
-            offer.currency_name ??
-            offer.cost_currency ??
-            '';
+            ? offer.item
 
-          return `
-            <div class="shopItem">
+            : {};
 
-              <b>
-                ${esc(name)}
-              </b>
 
-              <div class="price">
+        const name =
 
-                ${currencyIcon(
-                  currency
-                )}
+          offer.item_name
+          ??
+          offer.name
+          ??
+          offer.title
+          ??
+          item.name
+          ??
+          item.name_de
+          ??
+          `Item ${
+            offer.item_id
+            ??
+            offer.id
+            ??
+            ''
+          }`;
 
-                ${fmt(
-                  price
-                )}
 
-                ${esc(
-                  currency
-                )}
+        const price =
 
-              </div>
+          offer.price
+          ??
+          offer.cost
+          ??
+          offer.amount
+          ??
+          offer.value
+          ??
+          offer.gold
+          ??
+          offer.diamonds;
+
+
+        let currency =
+
+          offer.currency
+          ??
+          offer.currency_name
+          ??
+          offer.cost_currency
+          ??
+          '';
+
+
+        if(!currency){
+
+          if(
+            offer.gold !==
+            undefined
+          ){
+
+            currency =
+              'gold';
+
+          }
+
+          else if(
+            offer.diamonds !==
+            undefined
+          ){
+
+            currency =
+              'diamonds';
+
+          }
+
+        }
+
+
+        return `
+          <div class="shopItem">
+
+            <b>
+              ${esc(name)}
+            </b>
+
+            <div class="price">
+
+              ${currencyIcon(
+                currency
+              )}
+
+              ${fmt(
+                price
+              )}
+
+              ${esc(
+                currency
+              )}
 
             </div>
-          `;
-        }
-      )
 
-      .join('');
+          </div>
+        `;
+
+      }
+
+    ).join('');
+
 }
 
-function eventLabelFromKey(key){
 
-  return String(
-    key || ''
-  )
-    .replaceAll(
-      '_',
-      ' '
+/* =========================
+   EVENTS
+========================= */
+
+function eventLabelFromKey(
+  key
+){
+
+  const labels = {
+
+    hunting_monday:
+      'Jagd-Montag',
+
+    funfair:
+      'Jahrmarkt',
+
+    combat_division:
+      'Kampfklassen-Auswertung',
+
+    combat_tournament_wednesday:
+      'Kampfturnier-Mittwoch',
+
+    double_thursday:
+      'Doppel-Ruhm',
+
+    knight_games:
+      'Ritterspiele',
+
+    castle_garden:
+      'Schlossgarten',
+
+    halloween:
+      'Halloween',
+
+    kings_tournament:
+      'Königsturnier'
+
+  };
+
+
+  return (
+    labels[key]
+    ||
+    String(
+      key || ''
     )
-    .replace(
-      /\b\w/g,
-      m=>m.toUpperCase()
-    );
+      .replaceAll(
+        '_',
+        ' '
+      )
+      .replace(
+        /\b\w/g,
+        letter =>
+          letter.toUpperCase()
+      )
+  );
+
 }
 
-function isTrulyActive(value){
+
+/*
+  Nur echte aktive Events.
+  outpost_status wird absichtlich NICHT
+  verwendet.
+*/
+
+function isTrulyActive(
+  value
+){
 
   if(
     value === true
@@ -1035,105 +1674,191 @@ function isTrulyActive(value){
     return true;
   }
 
+
   if(
     !value ||
-    typeof value !== 'object'
+    typeof value !==
+    'object'
   ){
+
     return false;
+
   }
 
-  if(
-    value.active === true
-  ){
-    return true;
-  }
 
   if(
+    value.active === true ||
     value.is_active === true
   ){
+
     return true;
+
   }
 
-  if(
+
+  const status =
     String(
-      value.status || ''
-    ).toLowerCase() ===
-    'active'
-  ){
-    return true;
-  }
+      value.status
+      ??
+      value.state
+      ??
+      ''
+    ).toLowerCase();
 
-  if(
-    String(
-      value.state || ''
-    ).toLowerCase() ===
-    'active'
-  ){
-    return true;
-  }
 
-  if(
-    String(
-      value.state || ''
-    ).toLowerCase() ===
-    'running'
-  ){
-    return true;
-  }
+  return [
 
-  return false;
+    'active',
+
+    'running',
+
+    'registration',
+
+    'fighting',
+
+    'ceremony'
+
+  ].includes(
+    status
+  );
+
 }
 
-function collectActiveEvents(d){
 
-  const active = [];
+function collectActiveEvents(
+  data
+){
+
+  const active =
+    [];
+
 
   Object.entries(
-    d.weekly_events || {}
+    data.weekly_events ||
+    {}
   )
     .forEach(
-      ([key,value])=>{
+
+      (
+        [
+          key,
+          value
+        ]
+      ) => {
 
         if(
           !isTrulyActive(
             value
           )
         ){
+
           return;
+
         }
 
+
+        let name =
+          value?.name ||
+          eventLabelFromKey(
+            key
+          );
+
+
+        let meta =
+          value?.description ||
+          'Regelmäßiges Wochen-Event';
+
+
+        if(
+          key ===
+          'knight_games' &&
+          value?.status
+        ){
+
+          const phases = {
+
+            registration:
+              'Registrierung',
+
+            fighting:
+              'Kämpfe',
+
+            ceremony:
+              'Siegerehrung'
+
+          };
+
+
+          name =
+            `Ritterspiele – ${
+              phases[
+                value.status
+              ]
+              ||
+              value.status
+            }`;
+
+        }
+
+
+        if(
+          key ===
+          'castle_garden' &&
+          value?.merchant
+        ){
+
+          meta =
+            `Händler: ${
+              value.merchant
+            }`;
+
+        }
+
+
         active.push({
-          icon:'📅',
 
-          name:
-            value?.name ||
-            eventLabelFromKey(
-              key
-            ),
+          icon:
+            '📅',
 
-          meta:
-            value?.description ||
-            'Regelmäßiges Wochen-Event'
+          name,
+
+          meta
+
         });
+
       }
+
     );
 
+
   Object.entries(
-    d.events || {}
+    data.events ||
+    {}
   )
     .forEach(
-      ([key,value])=>{
+
+      (
+        [
+          key,
+          value
+        ]
+      ) => {
 
         if(
           !isTrulyActive(
             value
           )
         ){
+
           return;
+
         }
 
+
         active.push({
-          icon:'✨',
+
+          icon:
+            '✨',
 
           name:
             value?.name ||
@@ -1144,264 +1869,77 @@ function collectActiveEvents(d){
           meta:
             value?.description ||
             'Sonder-Event'
+
         });
+
       }
+
     );
 
+
   return active;
+
 }
 
-function germanWeekday(day){
 
-  const map = {
-    0:'Sonntag',
-    1:'Montag',
-    2:'Dienstag',
-    3:'Mittwoch',
-    4:'Donnerstag',
-    5:'Freitag',
-    6:'Samstag'
-  };
+/*
+  "Als Nächstes" basiert auf dem offiziellen
+  regelmäßigen Wochenplan.
 
-  return map[day] || '';
-}
+  Dadurch bleibt dieser Bereich sichtbar,
+  auch wenn die Live-API nur active:false liefert.
+*/
 
-function parseWeekday(
-  value,
-  key=''
+function nextWeeklyEvents(
+  limit = 3
 ){
-
-  const candidates = [
-    value?.day,
-    value?.weekday,
-    value?.day_of_week,
-    value?.schedule?.day,
-    value?.schedule?.weekday
-  ];
-
-  for(
-    const candidate
-    of candidates
-  ){
-
-    if(
-      candidate === null ||
-      candidate === undefined
-    ){
-      continue;
-    }
-
-    if(
-      Number.isInteger(
-        Number(candidate)
-      )
-    ){
-
-      const n =
-        Number(candidate);
-
-      if(
-        n >= 0 &&
-        n <= 6
-      ){
-        return n;
-      }
-
-      if(
-        n >= 1 &&
-        n <= 7
-      ){
-        return n % 7;
-      }
-    }
-
-    const t =
-      String(candidate)
-        .toLowerCase();
-
-    const names = {
-      sunday:0,
-      sonntag:0,
-      monday:1,
-      montag:1,
-      tuesday:2,
-      dienstag:2,
-      wednesday:3,
-      mittwoch:3,
-      thursday:4,
-      donnerstag:4,
-      friday:5,
-      freitag:5,
-      saturday:6,
-      samstag:6
-    };
-
-    if(
-      names[t] !== undefined
-    ){
-      return names[t];
-    }
-  }
-
-  const k =
-    String(key)
-      .toLowerCase();
-
-  if(
-    k.includes('monday') ||
-    k.includes('montag')
-  ){
-    return 1;
-  }
-
-  if(
-    k.includes('tuesday') ||
-    k.includes('dienstag')
-  ){
-    return 2;
-  }
-
-  if(
-    k.includes('wednesday') ||
-    k.includes('mittwoch')
-  ){
-    return 3;
-  }
-
-  if(
-    k.includes('thursday') ||
-    k.includes('donnerstag')
-  ){
-    return 4;
-  }
-
-  if(
-    k.includes('friday') ||
-    k.includes('freitag')
-  ){
-    return 5;
-  }
-
-  if(
-    k.includes('saturday') ||
-    k.includes('samstag')
-  ){
-    return 6;
-  }
-
-  if(
-    k.includes('sunday') ||
-    k.includes('sonntag')
-  ){
-    return 0;
-  }
-
-  return null;
-}
-
-function collectUpcomingEvents(
-  d,
-  limit=2
-){
-
-  const now =
-    new Date();
 
   const today =
-    now.getDay();
+    new Date()
+      .getDay();
 
-  const upcoming = [];
 
-  const ingest =
-    (
-      source,
-      kind
-    )=>{
+  return WEEKLY_EVENTS
 
-      Object.entries(
-        source || {}
-      )
-        .forEach(
-          ([key,value])=>{
+    .map(
 
-            if(
-              isTrulyActive(
-                value
-              )
-            ){
-              return;
-            }
+      event => {
 
-            if(
-              value === false ||
-              value === null ||
-              value === undefined
-            ){
-              return;
-            }
+        let delta =
+          (
+            event.day -
+            today +
+            7
+          ) % 7;
 
-            const day =
-              parseWeekday(
-                value,
-                key
-              );
 
-            if(
-              day === null
-            ){
-              return;
-            }
+        if(
+          delta === 0
+        ){
 
-            let delta =
-              (
-                day -
-                today +
-                7
-              ) % 7;
+          delta =
+            7;
 
-            if(
-              delta === 0
-            ){
-              delta = 7;
-            }
+        }
 
-            upcoming.push({
-              kind,
-              delta,
-              day,
 
-              name:
-                value?.name ||
-                eventLabelFromKey(
-                  key
-                ),
+        return {
 
-              desc:
-                value?.description ||
-                (
-                  kind === 'weekly'
-                    ? 'Regelmäßiges Wochen-Event'
-                    : 'Kommendes Event'
-                )
-            });
-          }
-        );
-    };
+          ...event,
 
-  ingest(
-    d.weekly_events,
-    'weekly'
-  );
+          delta
 
-  ingest(
-    d.events,
-    'event'
-  );
+        };
 
-  return upcoming
+      }
+
+    )
 
     .sort(
-      (a,b)=>
+      (
+        a,
+        b
+      ) =>
         a.delta -
         b.delta
     )
@@ -1410,251 +1948,332 @@ function collectUpcomingEvents(
       0,
       limit
     );
+
 }
 
-function dayText(event){
+
+function dayText(
+  delta
+){
 
   if(
-    event.delta === 1
+    delta === 1
   ){
     return 'Morgen';
   }
 
+
+  if(
+    delta === 2
+  ){
+    return 'Übermorgen';
+  }
+
+
   return (
-    `In ${event.delta} Tagen`
+    `In ${delta} Tagen`
   );
+
 }
+
 
 function renderEvents(){
 
-  const d =
+  const data =
     state.data.live || {};
 
-  const nowEl =
+
+  const nowContainer =
     $('#eventsNow');
 
-  const nextEl =
+
+  const nextContainer =
     $('#eventsNext');
+
 
   const active =
     collectActiveEvents(
-      d
+      data
     );
 
-  if(nowEl){
 
-    nowEl.innerHTML =
+  if(
+    nowContainer
+  ){
+
+    if(
       active.length
+    ){
 
-        ? active
+      nowContainer.innerHTML =
+        active.map(
 
-          .map(
-            event=>`
-              <div class="eventCard now">
+          event => `
 
-                <div class="eventTitle">
+            <div class="eventCard now">
 
-                  <span>
-                    ${event.icon}
-                    ${esc(
-                      event.name
-                    )}
-                  </span>
+              <div class="eventTitle">
 
-                  <span class="eventWhen">
-                    JETZT
-                  </span>
+                <span>
 
-                </div>
-
-                <div class="eventMeta">
-                  ${esc(
-                    event.meta
-                  )}
-                </div>
-
-              </div>
-            `
-          )
-
-          .join('')
-
-        : (
-          '<div class="empty">' +
-          'Laut API ist gerade kein besonderes Event aktiv.' +
-          '</div>'
-        );
-  }
-
-  const upcoming =
-    collectUpcomingEvents(
-      d,
-      2
-    );
-
-  if(nextEl){
-
-    nextEl.innerHTML =
-      upcoming.length
-
-        ? upcoming
-
-          .map(
-            event=>`
-              <div class="eventCard next">
-
-                <div class="eventTitle">
-
-                  <span>
-                    📅
-                    ${esc(
-                      event.name
-                    )}
-                  </span>
-
-                  <span class="eventWhen">
-                    ${dayText(event)}
-                  </span>
-
-                </div>
-
-                <div class="eventMeta">
+                  ${event.icon}
 
                   ${esc(
-                    event.desc
+                    event.name
                   )}
 
-                  ·
+                </span>
 
-                  ${germanWeekday(
-                    event.day
-                  )}
-
-                </div>
+                <span class="eventWhen">
+                  JETZT
+                </span>
 
               </div>
-            `
-          )
 
-          .join('')
 
-        : (
-          '<div class="empty">' +
-          'Die API meldet aktuell kein eindeutig planbares nächstes Event.' +
-          '</div>'
-        );
-  }
-}
-
-function renderSkills(){
-
-  const d =
-    state.data.skills || {};
-
-  const fill =
-    (
-      el,
-      items
-    )=>{
-
-      if(!el){
-        return;
-      }
-
-      if(
-        !Array.isArray(items) ||
-        !items.length
-      ){
-        el.innerHTML =
-          '<span class="empty">' +
-          'Keine Daten' +
-          '</span>';
-
-        return;
-      }
-
-      el.innerHTML =
-        [...items]
-
-          .sort(
-            (a,b)=>
-              Number(
-                b.active === true
-              ) -
-              Number(
-                a.active === true
-              )
-          )
-
-          .map(
-            skill=>`
-              <span
-                class="chip ${
-                  skill.active
-                    ? 'active'
-                    : ''
-                }"
-              >
+              <div class="eventMeta">
 
                 ${esc(
-                  skill.name
+                  event.meta
                 )}
 
-                ·
+              </div>
 
-                ${fmt(
-                  skill.level
+            </div>
+
+          `
+
+        ).join('');
+
+    }
+
+    else{
+
+      nowContainer.innerHTML =
+        '<div class="empty">Gerade läuft kein besonderes Event.</div>';
+
+    }
+
+  }
+
+
+  const upcoming =
+    nextWeeklyEvents(
+      3
+    );
+
+
+  if(
+    nextContainer
+  ){
+
+    nextContainer.innerHTML =
+      upcoming.map(
+
+        event => `
+
+          <div class="eventCard next">
+
+            <div class="eventTitle">
+
+              <span>
+
+                ${event.icon}
+
+                ${esc(
+                  event.name
                 )}
 
               </span>
-            `
-          )
 
-          .join('');
-    };
+              <span class="eventWhen">
+
+                ${dayText(
+                  event.delta
+                )}
+
+              </span>
+
+            </div>
+
+
+            <div class="eventMeta">
+
+              ${esc(
+                event.desc
+              )}
+
+            </div>
+
+          </div>
+
+        `
+
+      ).join('');
+
+  }
+
+}
+
+
+/* =========================
+   SKILLS
+========================= */
+
+function renderSkills(){
+
+  const data =
+    state.data.skills || {};
+
+
+  function fill(
+    container,
+    items
+  ){
+
+    if(!container){
+      return;
+    }
+
+
+    if(
+      !Array.isArray(
+        items
+      ) ||
+      items.length === 0
+    ){
+
+      container.innerHTML =
+        '<span class="empty">Keine Daten</span>';
+
+      return;
+
+    }
+
+
+    container.innerHTML =
+      [...items]
+
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            Number(
+              b.active ===
+              true
+            )
+            -
+            Number(
+              a.active ===
+              true
+            )
+        )
+
+        .map(
+
+          skill => `
+
+            <span
+              class="chip ${
+                skill.active
+                  ? 'active'
+                  : ''
+              }"
+            >
+
+              ${esc(
+                skill.name
+              )}
+
+              ·
+
+              ${fmt(
+                skill.level
+              )}
+
+            </span>
+
+          `
+
+        ).join('');
+
+  }
+
 
   fill(
     $('#combatSkills'),
-    d.combat
+    data.combat
   );
+
 
   fill(
     $('#huntSkills'),
-    d.hunting
+    data.hunting
   );
+
 }
+
+
+/* =========================
+   SCHMIED
+========================= */
 
 function renderSmith(){
 
-  const d =
+  const data =
     state.data.blacksmith || {};
 
-  const el =
+
+  const container =
     $('#smith');
 
-  if(!el){
+
+  if(!container){
     return;
   }
 
-  const map = [
-    ['sword','Schwert'],
-    ['armor','Rüstung'],
-    ['shelter','Unterkunft']
+
+  const rows =
+    [];
+
+
+  const fields = [
+
+    [
+      'sword',
+      'Schwert'
+    ],
+
+    [
+      'armor',
+      'Rüstung'
+    ],
+
+    [
+      'shelter',
+      'Unterkunft'
+    ]
+
   ];
 
-  const rows = [];
 
   for(
-    const [key,label]
-    of map
+    const [
+      key,
+      label
+    ]
+    of fields
   ){
 
     const item =
-      d[key];
+      data[key];
+
 
     if(!item){
       continue;
     }
+
 
     const expiry =
       item.timer
@@ -1662,6 +2281,7 @@ function renderSmith(){
             item.timer
           )
         : null;
+
 
     const remaining =
       expiry
@@ -1678,18 +2298,27 @@ function renderSmith(){
 
         : null;
 
+
     rows.push(`
+
       <div class="smithItem">
 
         <div class="itemTop">
 
           <div class="itemName">
+
             ${label}
+
             ·
-            Stufe ${fmt(
-              item.level
-            )}
+
+            Stufe ${
+              fmt(
+                item.level
+              )
+            }
+
           </div>
+
 
           <div
             class="timer"
@@ -1710,10 +2339,13 @@ function renderSmith(){
                         remaining
                       )
 
-                    : `${fmt(
-                        item.timer
-                          ?.remaining_minutes
-                      )} Min`
+                    : `${
+                        fmt(
+                          item
+                            .timer
+                            ?.remaining_minutes
+                        )
+                      } Min`
                 )
 
                 : 'bereit'
@@ -1723,181 +2355,249 @@ function renderSmith(){
 
         </div>
 
+
         ${
           item.next_upgrade
 
             ? `
+
               <div class="itemMeta">
 
                 Nächste Stufe:
-                ${fmt(
-                  item.next_upgrade.level
-                )}
+
+                ${
+                  fmt(
+                    item
+                      .next_upgrade
+                      .level
+                  )
+                }
 
                 ·
 
-                ${fmt(
-                  item.next_upgrade.cost_gold
-                )}
+                ${
+                  fmt(
+                    item
+                      .next_upgrade
+                      .cost_gold
+                  )
+                }
 
                 🪙
 
               </div>
+
             `
 
             : ''
         }
 
       </div>
+
     `);
+
   }
 
-  el.innerHTML =
+
+  container.innerHTML =
     rows.length
 
       ? rows.join('')
 
-      : (
-        '<div class="empty">' +
-        'Keine Schmiededaten.' +
-        '</div>'
-      );
+      : '<div class="empty">Keine Schmiededaten.</div>';
+
 }
+
+
+/* =========================
+   DRACHE
+========================= */
 
 function renderDragon(){
 
-  const d =
+  const data =
     state.data.dragon || {};
 
-  const el =
+
+  const container =
     $('#dragon');
 
-  if(!el){
+
+  if(!container){
     return;
   }
+
 
   if(
-    d.has_dragon === false
+    data.has_dragon ===
+    false
   ){
-    el.innerHTML =
-      '<div class="empty">' +
-      'Noch kein Drache.' +
-      '</div>';
+
+    container.innerHTML =
+      '<div class="empty">Noch kein Drache.</div>';
 
     return;
+
   }
+
 
   if(
-    d.level === undefined
+    data.level ===
+    undefined
   ){
-    el.innerHTML =
-      '<div class="empty">' +
-      'Keine Drachendaten.' +
-      '</div>';
+
+    container.innerHTML =
+      '<div class="empty">Keine Drachendaten.</div>';
 
     return;
+
   }
 
-  const pct =
+
+  const percent =
     Math.max(
       0,
       Math.min(
         100,
         Number(
-          d.xp_percent ||
+          data.xp_percent ||
           0
         )
       )
     );
 
-  el.innerHTML = `
+
+  container.innerHTML = `
+
     <div class="itemTop">
 
       <div class="itemName">
-        Level ${fmt(
-          d.level
-        )}
+
+        Level ${
+          fmt(
+            data.level
+          )
+        }
+
       </div>
 
       <div class="timer">
+
         ${esc(
-          d.status || ''
+          data.status ||
+          ''
         )}
+
       </div>
 
     </div>
+
 
     <div class="itemMeta">
 
       XP
-      ${fmt(
-        d.xp
-      )}
+
+      ${
+        fmt(
+          data.xp
+        )
+      }
 
       /
 
-      ${fmt(
-        d.xp_needed
-      )}
+      ${
+        fmt(
+          data.xp_needed
+        )
+      }
 
-      ·
+      · Futter
 
-      Futter
-      ${fmt(
-        d.food
-      )}
+      ${
+        fmt(
+          data.food
+        )
+      }
 
     </div>
+
 
     <div class="progress">
-      <i style="width:${pct}%"></i>
+
+      <i
+        style="width:${percent}%"
+      ></i>
+
     </div>
+
   `;
+
 }
+
+
+/* =========================
+   AUSSENPOSTEN
+========================= */
 
 function renderOutpost(){
 
-  const d =
+  const data =
     state.data.outpost || {};
 
-  const el =
+
+  const container =
     $('#outpost');
 
-  if(!el){
+
+  if(!container){
     return;
   }
 
+
   const task =
-    d.current_task;
+    data.current_task;
+
 
   if(!task){
 
-    el.innerHTML = `
+    container.innerHTML = `
+
       <div class="empty">
+
         Keine aktive Aufgabe.
+
       </div>
 
       <div class="itemMeta">
 
         Erledigt:
-        ${fmt(
-          d.tasks_completed
-        )}
+
+        ${
+          fmt(
+            data.tasks_completed
+          )
+        }
 
         ·
 
         Belohnungen offen:
-        ${fmt(
-          d.pending_rewards
-        )}
+
+        ${
+          fmt(
+            data.pending_rewards
+          )
+        }
 
       </div>
+
     `;
 
     return;
+
   }
 
-  const pct =
+
+  const percent =
     task.target
 
       ? Math.min(
@@ -1905,7 +2605,8 @@ function renderOutpost(){
         (
           Number(
             task.progress
-          ) /
+          )
+          /
           Number(
             task.target
           )
@@ -1914,7 +2615,9 @@ function renderOutpost(){
 
       : 0;
 
-  el.innerHTML = `
+
+  container.innerHTML = `
+
     <div class="outpostItem">
 
       <div class="itemName">
@@ -1927,31 +2630,55 @@ function renderOutpost(){
 
       </div>
 
+
       <div class="itemMeta">
 
-        ${fmt(
-          task.progress
-        )}
+        ${
+          fmt(
+            task.progress
+          )
+        }
 
         /
 
-        ${fmt(
-          task.target
-        )}
+        ${
+          fmt(
+            task.target
+          )
+        }
 
       </div>
 
+
       <div class="progress">
-        <i style="width:${pct}%"></i>
+
+        <i
+          style="width:${percent}%"
+        ></i>
+
       </div>
 
     </div>
+
   `;
+
 }
 
+
+/* =========================
+   LIVE
+========================= */
+
 function renderLive(){
+
   renderEvents();
+
 }
+
+
+/* =========================
+   COUNTDOWN AKTUALISIERUNG
+========================= */
 
 function updateCountdowns(){
 
@@ -1960,12 +2687,16 @@ function updateCountdowns(){
       '[data-expires-at]'
     )
     .forEach(
-      el=>{
+
+      element => {
 
         const expiry =
           Number(
-            el.dataset.expiresAt
+            element
+              .dataset
+              .expiresAt
           );
+
 
         if(
           !Number.isFinite(
@@ -1975,8 +2706,10 @@ function updateCountdowns(){
           return;
         }
 
-        el.textContent =
+
+        element.textContent =
           countdownText(
+
             Math.max(
               0,
               Math.ceil(
@@ -1986,10 +2719,19 @@ function updateCountdowns(){
                 ) / 1000
               )
             )
+
           );
+
       }
+
     );
+
 }
+
+
+/* =========================
+   API LADEN
+========================= */
 
 async function loadAll(
   force = false
@@ -2001,34 +2743,41 @@ async function loadAll(
     return;
   }
 
+
   if(force){
 
     const now =
       Date.now();
+
 
     if(
       now -
       lastManualRefresh <
       MANUAL_COOLDOWN_MS
     ){
+
       setText(
         '#refreshState',
         'Bitte kurz warten…'
       );
 
       return;
+
     }
+
 
     lastManualRefresh =
       now;
+
   }
+
 
   if(
     Date.now() <
     state.blockedUntil
   ){
 
-    const sec =
+    const seconds =
       Math.ceil(
         (
           state.blockedUntil -
@@ -2036,25 +2785,27 @@ async function loadAll(
         ) / 1000
       );
 
+
     setText(
       '#refreshState',
-      `Rate-Limit-Pause · ${sec}s`
+      `Rate-Limit-Pause · ${seconds}s`
     );
 
+
     return;
+
   }
+
 
   state.busy =
     true;
 
-  $('#app')
-    ?.classList
-    .add('loading');
 
   setText(
     '#refreshState',
     'Aktualisiere…'
   );
+
 
   const endpoints = [
 
@@ -2111,16 +2862,20 @@ async function loadAll(
       '/v1/game/live',
       renderLive
     ]
+
   ];
 
-  const errors = [];
+
+  const errors =
+    [];
+
 
   try{
 
     for(
-      let i=0;
-      i<endpoints.length;
-      i++
+      let index = 0;
+      index < endpoints.length;
+      index++
     ){
 
       const [
@@ -2128,20 +2883,28 @@ async function loadAll(
         path,
         renderer
       ] =
-        endpoints[i];
+        endpoints[index];
+
 
       try{
 
         state.data[key] =
-          await api(path);
+          await api(
+            path
+          );
+
 
         renderer();
 
-      }catch(e){
+      }catch(error){
 
         errors.push(
-          `${path}: ${e.message || e}`
+          `${path}: ${
+            error.message ||
+            error
+          }`
         );
+
 
         if(
           key === 'shop'
@@ -2150,9 +2913,11 @@ async function loadAll(
           const shop =
             $('#shop');
 
+
           if(shop){
 
             shop.innerHTML = `
+
               <div class="empty">
 
                 Shop konnte nicht geladen werden.
@@ -2160,134 +2925,189 @@ async function loadAll(
                 <br>
 
                 ${esc(
-                  e.message ||
-                  e
+                  error.message ||
+                  error
                 )}
 
               </div>
+
             `;
+
           }
+
 
           setText(
             '#shopCount',
             '!'
           );
+
         }
+
 
         if(
-          e.rateLimited
+          error.rateLimited
         ){
+
           break;
+
         }
+
       }
 
+
       if(
-        i <
-        endpoints.length-1
+        index <
+        endpoints.length - 1
       ){
+
         await sleep(
           BETWEEN_REQUESTS_MS
         );
+
       }
+
     }
 
+
     updateCountdowns();
+
 
     if(
       errors.length
     ){
 
       showError(
-        errors.join('\n')
-      );
-
-      setText(
-        '#refreshState',
-        state.data.profile
-          ? 'Teilweise aktualisiert'
-          : 'Fehler'
-      );
-
-    }else{
-
-      hideError();
-
-      localStorage.setItem(
-        'rm_last_sync',
-        String(
-          Date.now()
+        errors.join(
+          '\n'
         )
       );
 
+
       setText(
+
         '#refreshState',
+
+        state.data.profile
+          ? 'Teilweise aktualisiert'
+          : 'Fehler'
+
+      );
+
+    }
+
+    else{
+
+      hideError();
+
+
+      localStorage.setItem(
+
+        'rm_last_sync',
+
+        String(
+          Date.now()
+        )
+
+      );
+
+
+      setText(
+
+        '#refreshState',
+
         `Aktuell · ${
           new Date()
             .toLocaleTimeString(
               'de-DE',
               {
-                hour:'2-digit',
-                minute:'2-digit',
-                second:'2-digit'
+                hour:
+                  '2-digit',
+
+                minute:
+                  '2-digit',
+
+                second:
+                  '2-digit'
               }
             )
         }`
+
       );
+
     }
 
-  }finally{
+  }
 
-    $('#app')
-      ?.classList
-      .remove('loading');
+  finally{
 
     state.busy =
       false;
+
   }
+
 }
+
+
+/* =========================
+   EINSTELLUNGEN
+========================= */
 
 function openSettings(){
 
   const drawer =
     $('#drawer');
 
+
   if(!drawer){
     return;
   }
 
+
   $('#tokenInput').value =
     token();
+
 
   $('#proxyInput').value =
     proxyUrl();
 
+
   $('#autoInput').checked =
     autoRefresh();
+
 
   drawer.classList.add(
     'open'
   );
+
 }
+
 
 function closeSettings(){
 
   $('#drawer')
     ?.classList
-    .remove('open');
+    .remove(
+      'open'
+    );
+
 }
+
 
 function saveSettings(){
 
-  const t =
+  const newToken =
     (
       $('#tokenInput')
-        ?.value || ''
+        ?.value ||
+      ''
     ).trim();
+
 
   const proxy =
     (
       $('#proxyInput')
-        ?.value || ''
+        ?.value ||
+      ''
     )
       .trim()
       .replace(
@@ -2295,57 +3115,86 @@ function saveSettings(){
         ''
       );
 
-  if(t){
+
+  if(
+    newToken
+  ){
 
     localStorage.setItem(
       'rm_token',
-      t
+      newToken
     );
 
-  }else{
+  }
+
+  else{
 
     localStorage.removeItem(
       'rm_token'
     );
+
   }
 
-  if(proxy){
+
+  if(
+    proxy
+  ){
 
     localStorage.setItem(
       'rm_proxy',
       proxy
     );
 
-  }else{
+  }
+
+  else{
 
     localStorage.removeItem(
       'rm_proxy'
     );
+
   }
 
+
   localStorage.setItem(
+
     'rm_auto',
+
     $('#autoInput')
       ?.checked
 
       ? '1'
 
       : '0'
+
   );
+
 
   closeSettings();
 
+
   setupAutoRefresh();
 
+
   if(
-    t &&
+    newToken &&
     proxy
   ){
-    loadAll(true);
-  }else{
-    openSettings();
+
+    loadAll(
+      true
+    );
+
   }
+
+  else{
+
+    openSettings();
+
+  }
+
 }
+
 
 function forgetToken(){
 
@@ -2353,30 +3202,44 @@ function forgetToken(){
     'rm_token'
   );
 
+
   if(
     $('#tokenInput')
   ){
+
     $('#tokenInput').value =
       '';
+
   }
+
 
   showError(
     'Token wurde auf diesem Gerät gelöscht.'
   );
+
 }
+
+
+/* =========================
+   AUTO REFRESH
+========================= */
 
 function setupAutoRefresh(){
 
   if(
     state.timer
   ){
+
     clearInterval(
       state.timer
     );
+
   }
+
 
   state.timer =
     null;
+
 
   if(
     autoRefresh() &&
@@ -2386,80 +3249,117 @@ function setupAutoRefresh(){
 
     state.timer =
       setInterval(
-        ()=>{
+
+        () => {
 
           if(
             document.visibilityState ===
             'visible'
           ){
-            loadAll(false);
+
+            loadAll(
+              false
+            );
+
           }
 
         },
+
         AUTO_REFRESH_MS
+
       );
+
   }
+
 }
+
 
 function setupCountdownTimer(){
 
   if(
     state.countdownTimer
   ){
+
     clearInterval(
       state.countdownTimer
     );
+
   }
+
 
   state.countdownTimer =
     setInterval(
       updateCountdowns,
       1000
     );
+
 }
+
+
+/* =========================
+   PWA INSTALLATION
+========================= */
 
 function setupInstall(){
 
   const standalone =
+
     window
       .matchMedia(
         '(display-mode: standalone)'
       )
       .matches
+
     ||
-    window.navigator.standalone ===
+
+    window.navigator
+      .standalone ===
       true;
 
-  if(standalone){
+
+  if(
+    standalone
+  ){
 
     document.body
       .classList
       .add(
         'standalone'
       );
+
   }
 
+
   window.addEventListener(
+
     'beforeinstallprompt',
-    event=>{
+
+    event => {
 
       event.preventDefault();
 
+
       state.installPrompt =
         event;
+
 
       $('#installBtn')
         ?.classList
         .remove(
           'hidden'
         );
+
     }
+
   );
+
 
   $('#installBtn')
     ?.addEventListener(
+
       'click',
-      async()=>{
+
+      async () => {
 
         if(
           !state.installPrompt
@@ -2467,44 +3367,66 @@ function setupInstall(){
           return;
         }
 
+
         state.installPrompt
           .prompt();
 
-        await state.installPrompt
+
+        await state
+          .installPrompt
           .userChoice;
+
 
         state.installPrompt =
           null;
+
 
         $('#installBtn')
           ?.classList
           .add(
             'hidden'
           );
+
       }
+
     );
 
+
   window.addEventListener(
+
     'appinstalled',
-    ()=>{
+
+    () => {
 
       state.installPrompt =
         null;
+
 
       $('#installBtn')
         ?.classList
         .add(
           'hidden'
         );
+
     }
+
   );
+
 }
 
+
+/* =========================
+   START
+========================= */
+
 window.addEventListener(
+
   'load',
-  ()=>{
+
+  () => {
 
     setupInstall();
+
 
     $('#settingsBtn')
       ?.addEventListener(
@@ -2512,11 +3434,13 @@ window.addEventListener(
         openSettings
       );
 
+
     $('#settingsFooter')
       ?.addEventListener(
         'click',
         openSettings
       );
+
 
     $('#closeBtn')
       ?.addEventListener(
@@ -2524,11 +3448,13 @@ window.addEventListener(
         closeSettings
       );
 
+
     $('#saveBtn')
       ?.addEventListener(
         'click',
         saveSettings
       );
+
 
     $('#forgetBtn')
       ?.addEventListener(
@@ -2536,29 +3462,46 @@ window.addEventListener(
         forgetToken
       );
 
+
     $('#refreshBtn')
       ?.addEventListener(
+
         'click',
-        ()=>loadAll(true)
+
+        () =>
+          loadAll(
+            true
+          )
+
       );
+
 
     $('#drawer')
       ?.addEventListener(
+
         'click',
-        e=>{
+
+        event => {
 
           if(
-            e.target?.id ===
+            event.target?.id ===
             'drawer'
           ){
+
             closeSettings();
+
           }
+
         }
+
       );
 
+
     document.addEventListener(
+
       'visibilitychange',
-      ()=>{
+
+      () => {
 
         if(
           document.visibilityState ===
@@ -2576,20 +3519,31 @@ window.addEventListener(
               ) || 0
             );
 
+
           if(
             Date.now() -
             last >
             45000
           ){
-            loadAll(false);
+
+            loadAll(
+              false
+            );
+
           }
+
         }
+
       }
+
     );
+
 
     setupCountdownTimer();
 
+
     setupAutoRefresh();
+
 
     if(
       'serviceWorker'
@@ -2599,18 +3553,32 @@ window.addEventListener(
       navigator
         .serviceWorker
         .register(
-          './service-worker.js?v=4'
+          './service-worker.js?v=5'
         )
-        .catch(()=>{});
+        .catch(
+          () => {}
+        );
+
     }
+
 
     if(
       token() &&
       proxyUrl()
     ){
-      loadAll(false);
-    }else{
-      openSettings();
+
+      loadAll(
+        false
+      );
+
     }
+
+    else{
+
+      openSettings();
+
+    }
+
   }
+
 );
