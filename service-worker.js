@@ -1,15 +1,130 @@
-const CACHE='rittermanager-v2';
-const ASSETS=['./','./index.html','./styles.css','./app.js?v=2','./manifest.webmanifest','./assets/klausi.jpg','./assets/icon-192.png','./assets/icon-512.png'];
-self.addEventListener('install',e=>{ self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))); });
-self.addEventListener('activate',e=>{ e.waitUntil((async()=>{ await caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))); await self.clients.claim(); })()); });
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET') return;
-  const u=new URL(e.request.url);
-  if(u.hostname.endsWith('.workers.dev')) return;
-  const isAppShell = u.origin===self.location.origin && (u.pathname.endsWith('/') || /\.(?:html|js|css|webmanifest)$/.test(u.pathname));
-  if(isAppShell){
-    e.respondWith(fetch(e.request).then(r=>{ const copy=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return r; }).catch(()=>caches.match(e.request)));
-    return;
+const CACHE_NAME =
+  'rittermanager-v4';
+
+const APP_SHELL = [
+  './',
+  './index.html',
+  './styles.css?v=4',
+  './app.js?v=4.0.0',
+  './manifest.webmanifest?v=4',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
+  './assets/klausi.jpg'
+];
+
+self.addEventListener(
+  'install',
+  event=>{
+
+    event.waitUntil(
+      caches
+        .open(
+          CACHE_NAME
+        )
+        .then(
+          cache=>
+            cache.addAll(
+              APP_SHELL
+            )
+        )
+    );
+
+    self.skipWaiting();
   }
-  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
-});
+);
+
+self.addEventListener(
+  'activate',
+  event=>{
+
+    event.waitUntil(
+      caches
+        .keys()
+        .then(
+          keys=>
+            Promise.all(
+              keys
+
+                .filter(
+                  key=>
+                    key !==
+                    CACHE_NAME
+                )
+
+                .map(
+                  key=>
+                    caches.delete(
+                      key
+                    )
+                )
+            )
+        )
+    );
+
+    self.clients.claim();
+  }
+);
+
+self.addEventListener(
+  'fetch',
+  event=>{
+
+    const request =
+      event.request;
+
+    const url =
+      new URL(
+        request.url
+      );
+
+    if(
+      request.method !==
+      'GET'
+    ){
+      return;
+    }
+
+    if(
+      url.hostname
+        .endsWith(
+          '.workers.dev'
+        )
+    ){
+      return;
+    }
+
+    event.respondWith(
+
+      fetch(request)
+
+        .then(
+          response=>{
+
+            const copy =
+              response.clone();
+
+            caches
+              .open(
+                CACHE_NAME
+              )
+              .then(
+                cache=>
+                  cache.put(
+                    request,
+                    copy
+                  )
+              );
+
+            return response;
+          }
+        )
+
+        .catch(
+          ()=>
+            caches.match(
+              request
+            )
+        )
+    );
+  }
+);
