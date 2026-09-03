@@ -94,7 +94,10 @@
 <div class="drawer" id="drawer">
   <div class="sheet">
     <h2>API verbinden</h2>
-    <div class="notice">Der Token wird ausschließlich im lokalen Browser-Speicher dieses Geräts gespeichert und nicht in den App-Dateien hinterlegt.</div>
+    <div class="notice">Worker-Adresse und Token werden ausschließlich im lokalen Browser-Speicher dieses Geräts gespeichert. Der Token steht nicht im GitHub-Quellcode. API-Aufrufe laufen über deinen Cloudflare Worker.</div>
+    <label class="label" for="proxyInput">Cloudflare Worker-Adresse</label>
+    <input class="input" id="proxyInput" type="url" inputmode="url" autocomplete="off" placeholder="https://dein-worker.dein-name.workers.dev">
+    <div class="small" style="margin:6px 2px 14px">Nur die Basisadresse eintragen, ohne <b>/v1/me</b> am Ende.</div>
     <label class="label" for="tokenInput">RitterManager API-Token</label>
     <input class="input" id="tokenInput" type="password" autocomplete="off" placeholder="Token hier einfügen">
     <label style="display:flex;gap:9px;align-items:center;margin:10px 2px;color:#d6c7b1;font-size:13px">
@@ -107,6 +110,6 @@
     <button class="danger" id="forgetBtn" style="width:100%;margin-top:10px">Token von diesem Gerät löschen</button>
   </div>
 </div>
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

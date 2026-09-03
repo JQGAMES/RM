@@ -1,5 +1,5 @@
 
-const API = 'https://api.knight-manager.com';
+const DIRECT_API = 'https://api.knight-manager.com';
 const $ = (s)=>document.querySelector(s);
 const state = {timer:null, data:{}};
 
@@ -19,15 +19,23 @@ function minText(m){
 }
 function setText(id, val){ const el=$(id); if(el) el.textContent = val ?? '–'; }
 function token(){ return localStorage.getItem('rm_token') || ''; }
+function proxyUrl(){ return (localStorage.getItem('rm_proxy') || '').replace(/\/+$/,''); }
 function autoRefresh(){ return localStorage.getItem('rm_auto') !== '0'; }
 
 async function api(path){
   const t=token();
+  const proxy=proxyUrl();
   if(!t) throw new Error('Kein API-Token gespeichert.');
-  const r=await fetch(API+path,{
-    headers:{'Authorization':`Bearer ${t}`,'Accept':'application/json'},
-    cache:'no-store'
-  });
+  if(!proxy) throw new Error('Keine Cloudflare-Worker-Adresse gespeichert. Öffne Einstellungen und trage die workers.dev-Adresse ein.');
+  let r;
+  try {
+    r=await fetch(proxy+path,{
+      headers:{'Authorization':`Bearer ${t}`,'Accept':'application/json'},
+      cache:'no-store'
+    });
+  } catch (e) {
+    throw new Error('Der Cloudflare Worker ist nicht erreichbar. Prüfe die Worker-Adresse und ob der Worker bereitgestellt wurde.');
+  }
   let body={}; try{body=await r.json()}catch{}
   if(!r.ok){
     const msg = body?.error || body?.message || `HTTP ${r.status}`;
@@ -189,17 +197,20 @@ function renderLive(){
 
 function openSettings(){
   $('#tokenInput').value=token();
+  $('#proxyInput').value=proxyUrl();
   $('#autoInput').checked=autoRefresh();
   $('#drawer').classList.add('open');
 }
 function closeSettings(){ $('#drawer').classList.remove('open'); }
 function saveSettings(){
   const t=$('#tokenInput').value.trim();
+  const proxy=$('#proxyInput').value.trim().replace(/\/+$/,'');
   if(t) localStorage.setItem('rm_token',t); else localStorage.removeItem('rm_token');
+  if(proxy) localStorage.setItem('rm_proxy',proxy); else localStorage.removeItem('rm_proxy');
   localStorage.setItem('rm_auto',$('#autoInput').checked?'1':'0');
   closeSettings();
   setupTimer();
-  if(t) loadAll();
+  if(t && proxy) loadAll(); else openSettings();
 }
 function forgetToken(){
   localStorage.removeItem('rm_token');
@@ -209,7 +220,7 @@ function forgetToken(){
 }
 function setupTimer(){
   if(state.timer) clearInterval(state.timer);
-  if(autoRefresh() && token()) state.timer=setInterval(loadAll,30000);
+  if(autoRefresh() && token() && proxyUrl()) state.timer=setInterval(loadAll,30000);
 }
 
 window.addEventListener('load',()=>{
@@ -221,5 +232,5 @@ window.addEventListener('load',()=>{
   $('#drawer').addEventListener('click',e=>{if(e.target.id==='drawer') closeSettings();});
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
   setupTimer();
-  if(token()) loadAll(); else openSettings();
+  if(token() && proxyUrl()) loadAll(); else openSettings();
 });
