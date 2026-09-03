@@ -1,11 +1,13 @@
 {
-  "name": "RitterManager Übersicht",
+  "name": "RitterManager Dashboard",
   "short_name": "RitterManager",
-  "description": "Persönliches RitterManager-Dashboard",
-  "start_url": "./index.html",
+  "description": "Kompakte persönliche Übersicht für RitterManager",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#15100b",
-  "theme_color": "#b48a3a",
+  "background_color": "#100c08",
+  "theme_color": "#15100b",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "assets/icon-192.png",
