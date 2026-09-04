@@ -1,268 +1,101 @@
 <!doctype html>
 <html lang="de">
 <head>
-
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#15100b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>RitterManager Dashboard</title>
 
-  <meta
-    name="viewport"
-    content="width=device-width,initial-scale=1,viewport-fit=cover"
-  >
-
-  <meta
-    name="theme-color"
-    content="#15100b"
-  >
-
-  <meta
-    name="mobile-web-app-capable"
-    content="yes"
-  >
-
-  <meta
-    name="apple-mobile-web-app-capable"
-    content="yes"
-  >
-
-  <title>
-    RitterManager Dashboard
-  </title>
-
-  <link
-    rel="manifest"
-    href="manifest.webmanifest?v=4"
-  >
-
-  <link
-    rel="icon"
-    href="assets/icon-192.png"
-  >
-
-  <link
-    rel="apple-touch-icon"
-    href="assets/icon-192.png"
-  >
-
-  <link
-    rel="stylesheet"
-    href="styles.css?v=7.0.0"
-  >
-
+  <link rel="manifest" href="manifest.webmanifest?v=4">
+  <link rel="icon" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="stylesheet" href="styles.css?v=7.0.0">
 </head>
-
 <body>
-
   <header class="topbar">
-
-    <img
-      src="assets/klausi.jpg"
-      class="appLogo"
-      alt="RitterManager"
-    >
+    <img src="assets/klausi.jpg" class="appLogo" alt="RitterManager">
 
     <div class="titlewrap">
-
-      <h1>
-        RitterManager
-      </h1>
-
-      <div
-        id="season"
-        class="subtitle"
-      >
-        Persönliche Übersicht
-      </div>
-
+      <h1>RitterManager</h1>
+      <div id="season" class="subtitle">Persönliche Übersicht</div>
     </div>
 
-    <button
-      id="settingsBtn"
-      class="iconbtn"
-      type="button"
-      aria-label="Einstellungen"
-    >
-      ⚙
-    </button>
-
+    <button id="settingsBtn" class="iconbtn" type="button" aria-label="Einstellungen">⚙</button>
   </header>
 
+  <div id="errorBox" class="notice error hidden"></div>
 
-  <div
-    id="errorBox"
-    class="notice error hidden"
-  ></div>
-
-
-  <main
-    id="pager"
-    class="pager"
-  >
-
-    <section
-      class="page active"
-      data-page="0"
-      aria-label="Übersicht"
-    >
+  <main id="pager" class="pager">
+    <section class="page active" data-page="0" aria-label="Übersicht">
       <div id="overviewPage"></div>
     </section>
 
-
-    <section
-      class="page"
-      data-page="1"
-      aria-label="Ritter"
-    >
+    <section class="page" data-page="1" aria-label="Ritter">
       <div id="knightPage"></div>
     </section>
 
-
-    <section
-      class="page"
-      data-page="2"
-      aria-label="Rucksack"
-    >
+    <section class="page" data-page="2" aria-label="Rucksack">
       <div id="backpackPage"></div>
     </section>
 
-
-    <section
-      class="page"
-      data-page="3"
-      aria-label="Welt"
-    >
+    <section class="page" data-page="3" aria-label="Welt">
       <div id="worldPage"></div>
     </section>
 
-
-    <section
-      class="page"
-      data-page="4"
-      aria-label="Mehr"
-    >
+    <section class="page" data-page="4" aria-label="Mehr">
       <div id="morePage"></div>
     </section>
-
   </main>
 
-
-  <div
-    class="pageDots"
-    id="pageDots"
-    aria-hidden="true"
-  ></div>
-
+  <div class="pageDots" id="pageDots" aria-hidden="true"></div>
 
   <nav class="bottomTabs">
-
-    <button
-      data-tab="0"
-      class="tab active"
-      type="button"
-    >
+    <button data-tab="0" class="tab active" type="button">
       <span>⌂</span>
       <small>Übersicht</small>
     </button>
 
-
-    <button
-      data-tab="1"
-      class="tab"
-      type="button"
-    >
+    <button data-tab="1" class="tab" type="button">
       <span>⚔️</span>
       <small>Ritter</small>
     </button>
 
-
-    <button
-      data-tab="2"
-      class="tab"
-      type="button"
-    >
+    <button data-tab="2" class="tab" type="button">
       <span>🎒</span>
       <small>Rucksack</small>
     </button>
 
-
-    <button
-      data-tab="3"
-      class="tab"
-      type="button"
-    >
+    <button data-tab="3" class="tab" type="button">
       <span>🌍</span>
       <small>Welt</small>
     </button>
 
-
-    <button
-      data-tab="4"
-      class="tab"
-      type="button"
-    >
+    <button data-tab="4" class="tab" type="button">
       <span>•••</span>
       <small>Mehr</small>
     </button>
-
   </nav>
 
+  <button id="refreshBtn" class="floatingRefresh" type="button" aria-label="Aktualisieren">↻</button>
 
-  <button
-    id="refreshBtn"
-    class="floatingRefresh"
-    type="button"
-    aria-label="Aktualisieren"
-  >
-    ↻
-  </button>
-
-
-  <button
-    id="installBtn"
-    class="installBtn hidden"
-    type="button"
-  >
+  <button id="installBtn" class="installBtn hidden" type="button">
     📲 Als App installieren
   </button>
 
-
-  <div
-    class="drawer"
-    id="drawer"
-  >
-
+  <div class="drawer" id="drawer">
     <div class="sheet">
-
       <div class="sheetHead">
-
         <div>
-
-          <div class="eyebrow">
-            EINSTELLUNGEN
-          </div>
-
-          <h2>
-            Dashboard verbinden
-          </h2>
-
+          <div class="eyebrow">EINSTELLUNGEN</div>
+          <h2>Dashboard verbinden</h2>
         </div>
 
-        <button
-          id="closeBtn"
-          class="iconbtn smallIcon"
-          type="button"
-        >
-          ✕
-        </button>
-
+        <button id="closeBtn" class="iconbtn smallIcon" type="button">✕</button>
       </div>
 
-
-      <label
-        class="label"
-        for="proxyInput"
-      >
-        Cloudflare Worker-Adresse
-      </label>
+      <label class="label" for="proxyInput">Cloudflare Worker-Adresse</label>
 
       <input
         class="input"
@@ -273,13 +106,7 @@
         placeholder="https://...workers.dev"
       >
 
-
-      <label
-        class="label"
-        for="tokenInput"
-      >
-        RitterManager API-Token
-      </label>
+      <label class="label" for="tokenInput">RitterManager API-Token</label>
 
       <input
         class="input"
@@ -289,44 +116,21 @@
         placeholder="Token hier einfügen"
       >
 
-
       <label class="checkRow">
-
-        <input
-          id="autoInput"
-          type="checkbox"
-        >
-
-        <span>
-          automatisch jede Minute aktualisieren
-        </span>
-
+        <input id="autoInput" type="checkbox">
+        <span>automatisch jede Minute aktualisieren</span>
       </label>
 
-
-      <button
-        class="primary full"
-        id="saveBtn"
-        type="button"
-      >
+      <button class="primary full" id="saveBtn" type="button">
         Speichern & verbinden
       </button>
 
-
-      <button
-        class="danger full"
-        id="forgetBtn"
-        type="button"
-      >
+      <button class="danger full" id="forgetBtn" type="button">
         Token löschen
       </button>
-
     </div>
-
   </div>
 
-
-  <script src="app.js?v=7.0.0"></script>
-
+  <script src="app.js?v=8.0.0"></script>
 </body>
 </html>
