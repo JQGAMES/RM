@@ -1,156 +1,78 @@
-const CACHE =
-  'rittermanager-v7';
-
+const CACHE = 'rittermanager-v8';
 
 const ASSETS = [
-
   './',
-
   './index.html',
-
   './styles.css?v=7.0.0',
-
-  './app.js?v=7.0.0',
-
+  './app.js?v=8.0.0',
   './manifest.webmanifest?v=4',
-
   './assets/klausi.jpg',
-
   './assets/icon-192.png',
-
   './assets/icon-512.png'
-
 ];
 
+self.addEventListener('install', event => {
+  self.skipWaiting();
 
-self.addEventListener(
-  'install',
-  event => {
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then(cache => cache.addAll(ASSETS))
+  );
+});
 
-    self.skipWaiting();
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    (async () => {
+      for (const key of await caches.keys()) {
+        if (key !== CACHE) {
+          await caches.delete(key);
+        }
+      }
 
+      await self.clients.claim();
+    })()
+  );
+});
 
-    event.waitUntil(
-
-      caches
-        .open(
-          CACHE
-        )
-        .then(
-          cache =>
-            cache.addAll(
-              ASSETS
-            )
-        )
-    );
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') {
+    return;
   }
-);
 
+  const url =
+    new URL(event.request.url);
 
-self.addEventListener(
-  'activate',
-  event => {
-
-    event.waitUntil(
-      (
-        async () => {
-
-          for(
-            const key
-            of await caches.keys()
-          ){
-
-            if(
-              key !== CACHE
-            ){
-
-              await caches.delete(
-                key
-              );
-            }
-          }
-
-
-          await self.clients.claim();
-
-        }
-      )()
-    );
+  if (
+    url.hostname.endsWith(
+      '.workers.dev'
+    )
+  ) {
+    return;
   }
-);
 
+  event.respondWith(
+    fetch(
+      event.request,
+      {
+        cache: 'no-store'
+      }
+    )
 
-self.addEventListener(
-  'fetch',
-  event => {
-
-    if(
-      event.request.method !==
-      'GET'
-    ){
-      return;
-    }
-
-
-    const url =
-      new URL(
-        event.request.url
-      );
-
-
-    /*
-      API niemals cachen.
-    */
-
-    if(
-      url.hostname
-        .endsWith(
-          '.workers.dev'
-        )
-    ){
-      return;
-    }
-
-
-    /*
-      App-Dateien zuerst
-      frisch von GitHub laden.
-    */
-
-    event.respondWith(
-
-      fetch(
-        event.request,
-        {
-          cache:
-            'no-store'
-        }
-      )
-
-      .then(
-        response => {
-
-          if(
-            response.ok
-          ){
-
-            caches
-              .open(
-                CACHE
-              )
-              .then(
-                cache =>
-                  cache.put(
-                    event.request,
-                    response.clone()
-                  )
+      .then(response => {
+        if (response.ok) {
+          caches
+            .open(CACHE)
+            .then(cache => {
+              cache.put(
+                event.request,
+                response.clone()
               );
-          }
-
-
-          return response;
+            });
         }
-      )
+
+        return response;
+      })
 
       .catch(
         () =>
@@ -158,6 +80,5 @@ self.addEventListener(
             event.request
           )
       )
-    );
-  }
-);
+  );
+});
