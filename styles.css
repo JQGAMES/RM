@@ -75,7 +75,9 @@ button{
   padding:10px 12px;
 
   background:#120d09e8;
-  backdrop-filter:blur(12px);
+
+  backdrop-filter:
+    blur(12px);
 
   border-bottom:
     1px solid #3e2b1c;
@@ -179,7 +181,6 @@ button{
 
 .card,
 .panel{
-
   background:
     linear-gradient(
       145deg,
@@ -288,7 +289,7 @@ button{
 }
 
 
-/* WERTE */
+/* KLEINE WERTE */
 
 .tile{
   background:#130d09a8;
@@ -329,7 +330,7 @@ button{
 }
 
 
-/* ÜBERSCHRIFTEN */
+/* ÜBERSCHRIFT */
 
 .panelHead{
   display:flex;
@@ -468,7 +469,7 @@ button{
 /* FORTSCHRITT */
 
 .progress{
-  height:6px;
+  height:7px;
 
   background:#0c0806;
 
@@ -476,7 +477,7 @@ button{
 
   overflow:hidden;
 
-  margin-top:5px;
+  margin-top:7px;
 }
 
 .progress i{
@@ -549,7 +550,7 @@ button{
 }
 
 
-/* SKILLS */
+/* FÄHIGKEITEN */
 
 .chips{
   display:flex;
@@ -737,6 +738,122 @@ details.item[open] summary::after{
   color:var(--muted);
 
   text-align:right;
+}
+
+
+/* AUSBAU */
+
+.upgradeGrid{
+  display:grid;
+
+  grid-template-columns:
+    repeat(3,1fr);
+
+  gap:7px;
+}
+
+.upgradeTile{
+  background:#140d09;
+
+  border:
+    1px solid #ffffff10;
+
+  border-radius:14px;
+
+  padding:
+    10px 6px;
+
+  text-align:center;
+}
+
+.upgradePic{
+  font-size:28px;
+  line-height:1;
+}
+
+.upgradeTile b{
+  display:block;
+
+  font-size:18px;
+
+  margin-top:5px;
+}
+
+.upgradeTile span{
+  display:block;
+
+  color:var(--muted);
+
+  font-size:10px;
+
+  margin-top:2px;
+}
+
+
+/* XP */
+
+.xpCard{
+  background:#140d09;
+
+  border:
+    1px solid #ffffff10;
+
+  border-radius:14px;
+
+  padding:10px;
+
+  margin-bottom:7px;
+}
+
+.xpTop{
+  display:flex;
+
+  justify-content:
+    space-between;
+
+  gap:8px;
+
+  align-items:center;
+}
+
+.xpTop strong{
+  font-size:12px;
+}
+
+.xpTop b{
+  font-size:12px;
+
+  color:var(--gold2);
+}
+
+
+/* SHOP */
+
+.shopOffer{
+  background:#140d09;
+
+  border:
+    1px solid #ffffff10;
+
+  border-radius:13px;
+
+  padding:9px;
+}
+
+.shopOfferName{
+  font-size:12px;
+
+  font-weight:850;
+}
+
+.shopOfferPrice{
+  font-size:11px;
+
+  color:var(--gold2);
+
+  font-weight:850;
+
+  margin-top:4px;
 }
 
 
@@ -995,9 +1112,7 @@ details.item[open] summary::after{
   font-size:11px;
 
   margin:
-    10px
-    2px
-    5px;
+    10px 2px 5px;
 }
 
 .input{
@@ -1084,4 +1199,16 @@ body.standalone .installBtn{
     grid-template-columns:
       repeat(2,1fr);
   }
+
+  .grid2{
+    grid-template-columns:1fr;
   }
+
+  .itemGrid{
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0,1fr)
+      );
+  }
+}
