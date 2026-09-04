@@ -1,4961 +1,1918 @@
-const $ =
-  s =>
-    document.querySelector(s);
-
-const $$ =
-  s =>
-    [
-      ...document.querySelectorAll(s)
-    ];
-
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 
 const S = {
-
-  data:{},
-
-  busy:false,
-
-  page:0,
-
-  blockedUntil:0,
-
-  autoTimer:null,
-
-  countTimer:null,
-
-  installPrompt:null
-
+  data: {},
+  busy: false,
+  page: 0,
+  blockedUntil: 0,
+  autoTimer: null,
+  countTimer: null,
+  installPrompt: null
 };
 
-
-const AUTO =
-  60000;
-
-const WAIT =
-  220;
-
-const MANUAL =
-  8000;
-
-let lastManual =
-  0;
-
+const AUTO = 60000;
+const WAIT = 220;
+const MANUAL = 8000;
+let lastManual = 0;
 
 const ENDPOINTS = [
-
-  [
-    'profile',
-    '/v1/me'
-  ],
-
-  [
-    'stats',
-    '/v1/me/stats'
-  ],
-
-  [
-    'buffs',
-    '/v1/me/buffs'
-  ],
-
-  [
-    'potions',
-    '/v1/me/potions'
-  ],
-
-  [
-    'shop',
-    '/v1/game/shop'
-  ],
-
-  [
-    'season',
-    '/v1/game/season'
-  ],
-
-  [
-    'live',
-    '/v1/game/live'
-  ],
-
-  [
-    'blacksmith',
-    '/v1/me/blacksmith'
-  ],
-
-  [
-    'dragon',
-    '/v1/me/dragon'
-  ],
-
-  [
-    'outpost',
-    '/v1/me/outpost'
-  ],
-
-  [
-    'skills',
-    '/v1/me/skills?desc=1'
-  ],
-
-  [
-    'tournaments',
-    '/v1/me/tournaments'
-  ],
-
-  [
-    'backpack',
-    '/v1/me/backpack?desc=1'
-  ],
-
-  [
-    'forest',
-    '/v1/game/forest'
-  ],
-
-  [
-    'province',
-    '/v1/game/province'
-  ],
-
-  [
-    'party',
-    '/v1/me/party'
-  ],
-
-  [
-    'dungeons',
-    '/v1/me/dungeons'
-  ],
-
-  [
-    'order',
-    '/v1/me/order'
-  ],
-
-  [
-    'lifetime',
-    '/v1/me/lifetime'
-  ],
-
-  [
-    'bestiary',
-    '/v1/me/bestiary'
-  ]
-
+  ['profile', '/v1/me'],
+  ['stats', '/v1/me/stats'],
+  ['buffs', '/v1/me/buffs'],
+  ['potions', '/v1/me/potions'],
+  ['shop', '/v1/game/shop'],
+  ['season', '/v1/game/season'],
+  ['live', '/v1/game/live'],
+  ['blacksmith', '/v1/me/blacksmith'],
+  ['dragon', '/v1/me/dragon'],
+  ['outpost', '/v1/me/outpost'],
+  ['skills', '/v1/me/skills?desc=1'],
+  ['tournaments', '/v1/me/tournaments'],
+  ['backpack', '/v1/me/backpack?desc=1'],
+  ['forest', '/v1/game/forest'],
+  ['province', '/v1/game/province'],
+  ['party', '/v1/me/party'],
+  ['dungeons', '/v1/me/dungeons'],
+  ['order', '/v1/me/order'],
+  ['lifetime', '/v1/me/lifetime'],
+  ['bestiary', '/v1/me/bestiary']
 ];
-
-
-const WEEK = [
-
-  {
-    day:1,
-    icon:'🏹',
-    name:'Jagd-Montag',
-    desc:
-      'Garantierte Jagdturniere jede Stunde und doppelter Preispool.'
-  },
-
-  {
-    day:2,
-    icon:'🎪',
-    name:'Jahrmarkt',
-    desc:
-      'Glücksrad mit Gegenstands-Preisen.'
-  },
-
-  {
-    day:3,
-    icon:'🛡️',
-    name:'Kampfklassen-Auswertung',
-    desc:
-      'Mittwoch um 12:01 Uhr.'
-  },
-
-  {
-    day:3,
-    icon:'⚔️',
-    name:'Kampfturnier-Mittwoch',
-    desc:
-      'Garantierte Kampfturniere jede Stunde und doppelter Preispool.'
-  },
-
-  {
-    day:4,
-    icon:'🏆',
-    name:'Doppelter Ruhm',
-    desc:
-      'Doppelter Ruhm aus Kämpfen.'
-  },
-
-  {
-    day:5,
-    icon:'🏰',
-    name:
-      'Ritterspiele – Registrierung',
-    desc:
-      'Freitag: Anmeldung zu den Ritterspielen.'
-  },
-
-  {
-    day:6,
-    icon:'⚔️',
-    name:
-      'Ritterspiele – Kämpfe',
-    desc:
-      'Samstag: Kämpfe für den Orden.'
-  },
-
-  {
-    day:0,
-    icon:'👑',
-    name:
-      'Ritterspiele – Siegerehrung',
-    desc:
-      'Sonntag: Auswertung und Belohnungen.'
-  }
-
-];
-
 
 const TR = {
-
-  active:'aktiv',
-
-  inactive:'inaktiv',
-
-  running:'läuft',
-
-  closed:'geschlossen',
-
-  open:'offen',
-
-  rewards:'Belohnungen',
-
-  registration:'Registrierung',
-
-  fighting:'Kämpfe',
-
-  ceremony:'Siegerehrung',
-
-  away:'nicht anwesend',
-
-  attack:'Angriff',
-
-  hurt:'besiegt',
-
-  egg:'Ei',
-
-  baby:'Babydrache',
-
-  kid:'Jungdrache',
-
-  adult:
-    'Erwachsener Drache',
-
-  idle:'wartet',
-
-  normal:'Normal',
-
-  heroic:'Heroisch',
-
-  legendary:'Legendär',
-
-  most_kills:
-    'Meiste Abschüsse',
-
-  most_variety:
-    'Größte Vielfalt',
-
-  most_orc_types:
-    'Meiste Ork-Arten',
-
-  most_wins:
-    'Meiste Siege',
-
-  most_damage:
-    'Meister Schaden'
-
+  active: 'aktiv',
+  inactive: 'inaktiv',
+  running: 'läuft',
+  closed: 'geschlossen',
+  open: 'offen',
+  rewards: 'Belohnungen',
+  registration: 'Registrierung',
+  fighting: 'Kämpfe',
+  ceremony: 'Siegerehrung',
+  away: 'nicht anwesend',
+  attack: 'Angriff',
+  hurt: 'besiegt',
+  egg: 'Ei',
+  baby: 'Babydrache',
+  kid: 'Jungdrache',
+  adult: 'Erwachsener Drache',
+  idle: 'wartet',
+  normal: 'Normal',
+  heroic: 'Heroisch',
+  legendary: 'Legendär'
 };
-
-
-const EFFECT = {
-
-  aim:{
-    name:'Zielgenauigkeit',
-    desc:
-      'Erhöht die Zielgenauigkeit im Düsterwald.'
-  },
-
-  all_hunt:{
-    name:'Jagdmeister',
-    desc:
-      'Erhöht mehrere Jagdwerte gleichzeitig.'
-  },
-
-  breakthrough:{
-    name:'Durchschlagskraft',
-    desc:
-      'Erhöht die Durchschlagskraft im Düsterwald.'
-  },
-
-  fix_hp:{
-    name:'Lebenskraft',
-    desc:
-      'Erhöht die maximalen Lebenspunkte.'
-  },
-
-  forest_xp:{
-    name:'Walderfahrung',
-    desc:
-      'Erhöht die Erfahrung im Düsterwald.'
-  },
-
-  hunting_skills:{
-    name:'Jagdinstinkt',
-    desc:
-      'Erhöht die Chance auf Jagdfähigkeiten.'
-  },
-
-  ice:{
-    name:'Frostschutz',
-    desc:
-      'Gewährt Schutz gegen Feuer.'
-  },
-
-  loot_bonus:{
-    name:'Beutebonus',
-    desc:
-      'Erhöht die Chance auf Beute.'
-  },
-
-  marks:{
-    name:'Spurenleser',
-    desc:
-      'Erhöht die Fähigkeit, Spuren zu lesen.'
-  },
-
-  max_hp:{
-    name:'Lebensboost',
-    desc:
-      'Erhöht die maximalen Lebenspunkte prozentual.'
-  },
-
-  str:{
-    name:'Stärkeboost',
-    desc:
-      'Erhöht die Stärke prozentual.'
-  },
-
-  threat:{
-    name:'Bedrohung',
-    desc:
-      'Erhöht die Bedrohung im Dungeon.'
-  },
-
-  forest_curse:{
-    name:
-      'Fluch des Ork-Hauptmanns',
-
-    desc:
-      'Negative Wirkung durch den Ork-Hauptmann.'
-  },
-
-  toxic:{
-    name:'Vergiftet',
-    desc:
-      'Verringert mehrere Werte.'
-  }
-
-};
-
-
-const EVENT_NAMES = {
-
-  hunting_monday:
-    'Jagd-Montag',
-
-  funfair:
-    'Jahrmarkt',
-
-  combat_division:
-    'Kampfklassen-Auswertung',
-
-  combat_tournament_wednesday:
-    'Kampfturnier-Mittwoch',
-
-  double_thursday:
-    'Doppelter Ruhm',
-
-  knight_games:
-    'Ritterspiele',
-
-  castle_garden:
-    'Schlossgarten',
-
-  halloween:
-    'Halloween',
-
-  kings_tournament:
-    'Königsturnier',
-
-  joust_tournament:
-    'Lanzenturnier',
-
-  trading_event:
-    'Handels-Event',
-
-  cookie:
-    'Keks-Event'
-
-};
-
-
-const CATEGORY_DE = {
-
-  Potions:
-    'Tränke',
-
-  Equipment:
-    'Ausrüstung',
-
-  Food:
-    'Nahrung',
-
-  Consumables:
-    'Verbrauchbar',
-
-  Crafting:
-    'Handwerkswaren',
-
-  Misc:
-    'Sonstiges'
-
-};
-
 
 const ITEM_DE = {
-
-  health_potion:
-    'Heiltrank',
-
-  strength_potion:
-    'Stärketrank',
-
-  silver_arrows:
-    'Silberpfeile',
-
-  healing_herbs:
-    'Heilkräuter',
-
-  throwing_axes:
-    'Wurfäxte',
-
-  wolf_bait:
-    'Wolfsköder',
-
-  apple:
-    'Apfel',
-
-  blackberries:
-    'Brombeeren',
-
-  raspberries:
-    'Himbeeren',
-
-  honeycomb:
-    'Honigwabe',
-
-  carrots:
-    'Möhren',
-
-  orc_meat:
-    'Ork-Fleisch',
-
-  wild_boar_meat:
-    'Wildschwein-Fleisch',
-
-  forest_mushrooms:
-    'Waldpilze',
-
-  small_meals:
-    'Kleine Mahlzeiten',
-
-  shadow_dust:
-    'Schattenstaub',
-
-  silver_bars:
-    'Silberbarren',
-
-  thorium_shard:
-    'Thorium-Splitter',
-
-  royal_medal:
-    'Königliche Medaille',
-
-  province_coins:
-    'Provinzmünzen',
-
-  free_tickets:
-    'Freilose',
-
-  slime_bags:
-    'Schleimbeutel'
-
+  health_potion: 'Heiltrank',
+  strength_potion: 'Stärketrank',
+  silver_arrows: 'Silberpfeile',
+  healing_herbs: 'Heilkräuter',
+  throwing_axes: 'Wurfäxte',
+  wolf_bait: 'Wolfsköder',
+  apple: 'Apfel',
+  blackberries: 'Brombeeren',
+  raspberries: 'Himbeeren',
+  honeycomb: 'Honigwabe',
+  carrots: 'Möhren',
+  orc_meat: 'Ork-Fleisch',
+  wild_boar_meat: 'Wildschwein-Fleisch',
+  forest_mushrooms: 'Waldpilze',
+  small_meals: 'Kleine Mahlzeiten',
+  shadow_dust: 'Schattenstaub',
+  silver_bars: 'Silberbarren',
+  thorium_shard: 'Thorium-Splitter',
+  royal_medal: 'Königliche Medaille',
+  province_coins: 'Provinzmünzen',
+  free_tickets: 'Freilose',
+  slime_bags: 'Schleimbeutel'
 };
 
-
-const ITEM_NAME_DE = {
-
-  'health potion':
-    'Heiltrank',
-
-  'strength potion':
-    'Stärketrank',
-
-  'silver arrows':
-    'Silberpfeile',
-
-  'healing herbs':
-    'Heilkräuter',
-
-  'throwing axes':
-    'Wurfäxte',
-
-  'wolf bait':
-    'Wolfsköder',
-
-  'apple':
-    'Apfel',
-
-  'blackberries':
-    'Brombeeren',
-
-  'raspberries':
-    'Himbeeren',
-
-  'honeycomb':
-    'Honigwabe',
-
-  'carrots':
-    'Möhren',
-
-  'orc meat':
-    'Ork-Fleisch',
-
-  'wild boar meat':
-    'Wildschwein-Fleisch',
-
-  'forest mushrooms':
-    'Waldpilze',
-
-  'small meals':
-    'Kleine Mahlzeiten',
-
-  'shadow dust':
-    'Schattenstaub',
-
-  'silver bars':
-    'Silberbarren',
-
-  'thorium shard':
-    'Thorium-Splitter',
-
-  'thorium shards':
-    'Thorium-Splitter',
-
-  'royal medal':
-    'Königliche Medaille',
-
-  'province coins':
-    'Provinzmünzen',
-
-  'free tickets':
-    'Freilose',
-
-  'slime bags':
-    'Schleimbeutel'
-
+const CATEGORY_DE = {
+  Potions: 'Tränke',
+  Equipment: 'Ausrüstung',
+  Food: 'Nahrung',
+  Consumables: 'Verbrauchbar',
+  Crafting: 'Handwerkswaren',
+  Misc: 'Sonstiges'
 };
 
-
-const SKILL_DE = {
-
-  Fireball:
-    'Feuerball',
-
-  'Shield Wall':
-    'Schildwall',
-
-  'Quick Shot':
-    'Schnellschuss',
-
-  Bandage:
-    'Verband',
-
-  'Mirror Image':
-    'Spiegelbild',
-
-  'Magic Shield':
-    'Magisches Schild',
-
-  'Multiple Shot':
-    'Mehrfachschuss'
-
-};
-
-
-const OUTPOST_DE = {
-
-  skill_variety:
-    'Nutze verschiedene Jagdfähigkeiten.',
-
-  all_orc_types:
-    'Besiege verschiedene Ork-Arten.'
-
-};
-
-
-function esc(v){
-
-  return String(
-    v ?? ''
-  )
-  .replace(
+function esc(v) {
+  return String(v ?? '').replace(
     /[&<>"']/g,
     m => ({
-      '&':'&amp;',
-      '<':'&lt;',
-      '>':'&gt;',
-      '"':'&quot;',
-      "'":'&#39;'
-    }[m])
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[m]
   );
 }
 
+function fmt(v) {
+  if (v === null || v === undefined || v === '') return '–';
 
-function fmt(v){
-
-  if(
-    v === null
-    ||
-    v === undefined
-    ||
-    v === ''
-  ){
-    return '–';
-  }
-
-  return (
-    typeof v === 'number'
-
-      ? new Intl
-          .NumberFormat(
-            'de-DE'
-          )
-          .format(v)
-
-      : String(v)
-  );
+  return typeof v === 'number'
+    ? new Intl.NumberFormat('de-DE').format(v)
+    : String(v);
 }
 
-
-function de(v){
-
-  return (
-    TR[
-      String(
-        v ?? ''
-      )
-      .toLowerCase()
-    ]
-    ||
-    String(
-      v ?? ''
-    )
-  );
+function val(...values) {
+  return values.find(v => v !== undefined && v !== null);
 }
 
-
-function val(...values){
-
-  return values.find(
-    v =>
-      v !== undefined
-      &&
-      v !== null
-  );
+function de(v) {
+  return TR[String(v ?? '').toLowerCase()] || String(v ?? '');
 }
 
-
-function token(){
-
-  return (
-    localStorage
-      .getItem(
-        'rm_token'
-      )
-    ||
-    ''
-  ).trim();
+function token() {
+  return (localStorage.getItem('rm_token') || '').trim();
 }
 
-
-function proxy(){
-
-  return (
-    localStorage
-      .getItem(
-        'rm_proxy'
-      )
-    ||
-    ''
-  )
-  .trim()
-  .replace(
-    /\/+$/,
-    ''
-  );
+function proxy() {
+  return (localStorage.getItem('rm_proxy') || '')
+    .trim()
+    .replace(/\/+$/, '');
 }
 
-
-function auto(){
-
-  return (
-    localStorage
-      .getItem(
-        'rm_auto'
-      )
-    !== '0'
-  );
+function auto() {
+  return localStorage.getItem('rm_auto') !== '0';
 }
 
-
-function sleep(ms){
-
-  return new Promise(
-    r =>
-      setTimeout(
-        r,
-        ms
-      )
-  );
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-
-function unwrap(body){
-
-  return (
-    body
-    &&
-    typeof body === 'object'
-    &&
-    body.success === true
-    &&
-    Object.prototype
-      .hasOwnProperty
-      .call(
-        body,
-        'data'
-      )
-  )
-
-    ? body.data
-
-    : body;
-}
-
 
 /*
-  Zentraler Zahlenleser.
-
-  Wichtig für Werte wie:
-  Stärke, Verteidigung, Glück,
-  Energie, Genauigkeit,
-  Spuren lesen usw.
-
-  Bevorzugt TOTAL.
-*/
-
-function metricNumber(x){
-
-  if(
-    x === null
-    ||
-    x === undefined
-  ){
-    return null;
+ * Die KnightManager-API liefert Antworten teilweise als:
+ *
+ * {
+ *   success: true,
+ *   data: {...}
+ * }
+ *
+ * Deshalb werden diese Antworten hier zentral entpackt.
+ */
+function unwrap(body) {
+  if (
+    body &&
+    typeof body === 'object' &&
+    body.success === true &&
+    Object.prototype.hasOwnProperty.call(body, 'data')
+  ) {
+    return body.data;
   }
 
+  return body;
+}
 
-  if(
-    typeof x === 'number'
-    &&
-    Number.isFinite(x)
-  ){
+/*
+ * Wandelt auch verschachtelte Werte wie
+ *
+ * { total: 22 }
+ * { current: 40 }
+ * { value: 11 }
+ * { base: 30, bonus: 10 }
+ *
+ * zuverlässig in eine Zahl um.
+ */
+function metricNumber(x) {
+  if (x === null || x === undefined) return null;
+
+  if (typeof x === 'number' && Number.isFinite(x)) {
     return x;
   }
 
-
-  if(
-    typeof x === 'string'
-    &&
-    x.trim() !== ''
-    &&
-    Number.isFinite(
-      Number(x)
-    )
-  ){
+  if (
+    typeof x === 'string' &&
+    x.trim() !== '' &&
+    Number.isFinite(Number(x))
+  ) {
     return Number(x);
   }
 
+  if (typeof x !== 'object') return null;
 
-  if(
-    typeof x !== 'object'
-  ){
-    return null;
-  }
-
-
-  for(
-    const key
-    of [
-      'total',
-      'current',
-      'value',
-      'amount',
-      'score',
-      'level'
-    ]
-  ){
-
-    if(
-      Number.isFinite(
-        Number(
-          x[key]
-        )
-      )
-    ){
-
-      return Number(
-        x[key]
-      );
+  for (const key of [
+    'total',
+    'current',
+    'value',
+    'amount',
+    'score',
+    'level'
+  ]) {
+    if (Number.isFinite(Number(x[key]))) {
+      return Number(x[key]);
     }
   }
 
-
-  if(
-    Number.isFinite(
-      Number(x.base)
-    )
-    &&
-    Number.isFinite(
-      Number(x.bonus)
-    )
-  ){
-
-    return (
-      Number(x.base)
-      +
-      Number(x.bonus)
-    );
+  if (
+    Number.isFinite(Number(x.base)) &&
+    Number.isFinite(Number(x.bonus))
+  ) {
+    return Number(x.base) + Number(x.bonus);
   }
 
-
-  if(
-    Number.isFinite(
-      Number(x.base)
-    )
-  ){
-
-    return Number(
-      x.base
-    );
+  if (Number.isFinite(Number(x.base))) {
+    return Number(x.base);
   }
-
 
   return null;
 }
 
+function deepMetric(obj, keys) {
+  for (const key of keys) {
+    const parts = key.split('.');
+    let current = obj;
 
-function itemName(x){
+    for (const part of parts) {
+      if (current == null) break;
+      current = current[part];
+    }
 
-  if(
-    x?.name_de
-  ){
-    return x.name_de;
+    const n = metricNumber(current);
+
+    if (n != null) return n;
   }
 
+  return null;
+}
 
-  const ident =
-    String(
-      x?.ident || ''
-    )
-    .toLowerCase();
+function itemName(item) {
+  if (item?.name_de) return item.name_de;
 
+  const ident = String(item?.ident || '').toLowerCase();
 
-  if(
-    ITEM_DE[
-      ident
-    ]
-  ){
-
-    return ITEM_DE[
-      ident
-    ];
-  }
-
-
-  const raw =
-    String(
-      x?.name
-      ||
-      x?.ident
-      ||
-      ''
-    );
-
+  if (ITEM_DE[ident]) return ITEM_DE[ident];
 
   return (
-    ITEM_NAME_DE[
-      raw.toLowerCase()
-    ]
-    ||
-    raw
+    item?.item_name_de ||
+    item?.item_name ||
+    item?.name ||
+    item?.ident ||
+    'Gegenstand'
   );
 }
 
-
-function skillName(x){
-
-  return (
-    x?.name_de
-    ||
-    SKILL_DE[
-      x?.name
-    ]
-    ||
-    x?.name
-    ||
-    x?.ident
-    ||
-    ''
-  );
-}
-
-
-/* API */
-
-async function api(path){
-
-  if(
-    Date.now()
-    <
-    S.blockedUntil
-  ){
-
+async function api(path) {
+  if (Date.now() < S.blockedUntil) {
     throw Object.assign(
-      new Error(
-        'API-Pause aktiv.'
-      ),
-      {
-        rate:true
-      }
+      new Error('API-Pause aktiv.'),
+      { rate: true }
     );
   }
 
-
-  if(
-    !token()
-    ||
-    !proxy()
-  ){
-
-    throw new Error(
-      'API-Zugang fehlt.'
-    );
+  if (!token() || !proxy()) {
+    throw new Error('API-Zugang fehlt.');
   }
 
+  const separator = path.includes('?') ? '&' : '?';
+  const url =
+    proxy() +
+    path +
+    separator +
+    '_=' +
+    Date.now();
 
-  const response =
-    await fetch(
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token()}`,
+      Accept: 'application/json'
+    },
+    cache: 'no-store'
+  });
 
-      proxy() + path,
+  const raw = await response.text();
 
-      {
-        headers: {
+  let body = null;
 
-          Authorization:
-            `Bearer ${token()}`,
+  try {
+    body = raw ? JSON.parse(raw) : null;
+  } catch {
+    body = null;
+  }
 
-          Accept:
-            'application/json'
-        },
-
-        cache:
-          'no-store'
-      }
-    );
-
-
-  const raw =
-    await response.text();
-
-
-  let body =
-    null;
-
-
-  try{
-
-    body =
-      raw
-        ? JSON.parse(raw)
-        : null;
-
-  }catch{}
-
-
-  if(
-    !response.ok
-  ){
-
-    if(
-      response.status ===
-      429
-    ){
-
-      const match =
-        raw.match(
-          /(\d+)\s*seconds?/i
-        );
-
+  if (!response.ok) {
+    if (response.status === 429) {
+      const match = raw.match(/(\d+)\s*seconds?/i);
+      const seconds = Number(match?.[1] || 60);
 
       S.blockedUntil =
-        Date.now()
-        +
-        Number(
-          match?.[1]
-          ||
-          60
-        )
-        *
-        1000;
-
+        Date.now() + seconds * 1000;
 
       throw Object.assign(
         new Error(
-          'API-Limit erreicht.'
+          `API-Limit erreicht. Noch ungefähr ${seconds} Sekunden warten.`
         ),
-        {
-          rate:true
-        }
+        { rate: true }
       );
     }
-
 
     throw new Error(
-      `${path}: HTTP ${
-        response.status
-      }`
+      `${path}: HTTP ${response.status}`
     );
   }
 
+  return unwrap(body);
+}
 
-  return unwrap(
-    body
+function progress(percent) {
+  const p = Math.max(
+    0,
+    Math.min(100, Number(percent) || 0)
   );
-}
-
-
-/* TIMER */
-
-function t(seconds){
-
-  seconds =
-    Math.max(
-      0,
-      Math.ceil(
-        Number(seconds)
-        ||
-        0
-      )
-    );
-
-
-  const h =
-    Math.floor(
-      seconds / 3600
-    );
-
-
-  const m =
-    Math.floor(
-      (
-        seconds % 3600
-      )
-      /
-      60
-    );
-
-
-  const r =
-    seconds % 60;
-
-
-  return h
-
-    ? (
-      `${h}:` +
-      `${String(m).padStart(2,'0')}:` +
-      `${String(r).padStart(2,'0')}`
-    )
-
-    : (
-      `${m}:` +
-      `${String(r).padStart(2,'0')}`
-    );
-}
-
-
-function expiry(obj){
-
-  if(
-    !obj
-    ||
-    typeof obj !==
-    'object'
-  ){
-    return null;
-  }
-
-
-  const absolute =
-    obj.expires_at
-    ??
-    obj.finishes_at;
-
-
-  if(
-    absolute != null
-  ){
-
-    const n =
-      Number(
-        absolute
-      );
-
-
-    if(
-      Number.isFinite(n)
-    ){
-
-      return (
-        n > 2e12
-          ? n
-          : n * 1000
-      );
-    }
-
-
-    const parsed =
-      Date.parse(
-        absolute
-      );
-
-
-    if(
-      Number.isFinite(
-        parsed
-      )
-    ){
-      return parsed;
-    }
-  }
-
-
-  const date =
-    Date.parse(
-      obj.expires_datetime
-      ||
-      ''
-    );
-
-
-  if(
-    Number.isFinite(
-      date
-    )
-  ){
-    return date;
-  }
-
-
-  if(
-    Number.isFinite(
-      Number(
-        obj.remaining_seconds
-      )
-    )
-  ){
-
-    return (
-      Date.now()
-      +
-      Number(
-        obj.remaining_seconds
-      )
-      *
-      1000
-    );
-  }
-
-
-  if(
-    Number.isFinite(
-      Number(
-        obj.remaining_minutes
-      )
-    )
-  ){
-
-    return (
-      Date.now()
-      +
-      Number(
-        obj.remaining_minutes
-      )
-      *
-      60000
-    );
-  }
-
-
-  return null;
-}
-
-
-/* HTML-HILFEN */
-
-function progress(value){
-
-  value =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        Number(value)
-        ||
-        0
-      )
-    );
-
 
   return `
     <div class="progress">
-      <i
-        style="width:${value}%"
-      ></i>
+      <i style="width:${p}%"></i>
     </div>
   `;
 }
 
-
-function row(
-  title,
-  value,
-  meta='',
-  icon=''
-){
-
+function row(label, value, meta = '', icon = '') {
   return `
-    <div class="row">
-
-      <div class="rowMain">
-
-        <div class="rowTitle">
-
-          ${
-            icon
-              ? icon + ' '
-              : ''
-          }
-
-          ${esc(title)}
-
-        </div>
-
-        ${
-          meta
-            ? `
-              <div class="rowMeta">
-                ${esc(meta)}
-              </div>
-            `
-            : ''
-        }
-
-      </div>
-
-      <div class="value">
-        ${esc(
-          fmt(value)
-        )}
-      </div>
-
-    </div>
-  `;
-}
-
-
-/* PROFIL */
-
-function hero(){
-
-  const p =
-    S.data.profile
-    ||
-    {};
-
-
-  const ranking =
-    p.ranking
-    ||
-    {};
-
-
-  const rank =
-    p.rank
-    ||
-    {};
-
-
-  const currencies =
-    p.currencies
-    ||
-    {};
-
-
-  const combat =
-    p.combat
-    ||
-    {};
-
-
-  const energy =
-    metricNumber(
-      val(
-        p.energy,
-        p.resources?.energy
-      )
-    );
-
-
-  const servants =
-    val(
-      currencies.servants,
-      p.servants,
-      p.resources?.servants
-    );
-
-
-  const arrows =
-    val(
-      currencies.arrow_makers,
-      p.arrow_makers,
-      p.resources?.arrow_makers
-    );
-
-
-  const hp =
-    metricNumber(
-      combat.hp
-    );
-
-
-  return `
-    <div class="card hero">
-
-      <div class="heroTop">
-
+    <div class="dataRow">
+      <div class="dataLabel">
+        ${icon ? `<span class="rowIcon">${icon}</span>` : ''}
         <div>
-
-          <div class="name">
-
-            ${esc(
-              p.name
-              ||
-              'Mein Ritter'
-            )}
-
-          </div>
-
-
-          <div class="rankline">
-
-            ${esc(
-              [
-                rank.title,
-                p.title,
-
-                ranking.division != null
-                  ? `Division ${ranking.division}`
-                  : ''
-              ]
-              .filter(Boolean)
-              .join(' · ')
-            )}
-
-          </div>
-
-
-          <div class="muted tiny">
-
-            📍
-
-            ${esc(
-              p.status?.location
-              ||
-              'Unterwegs'
-            )}
-
-          </div>
-
+          <strong>${esc(label)}</strong>
+          ${meta ? `<small>${esc(meta)}</small>` : ''}
         </div>
-
-
-        <span
-          class="online ${
-            p.status?.online
-              ? ''
-              : 'offline'
-          }"
-        >
-
-          ${
-            p.status?.online
-              ? 'ONLINE'
-              : 'OFFLINE'
-          }
-
-        </span>
-
       </div>
 
-
-      <div class="stats4">
-
-        <div class="tile">
-          <span class="emoji">⚔️</span>
-          <b>${fmt(p.level)}</b>
-          <span>Level</span>
-        </div>
-
-
-        <div class="tile">
-          <span class="emoji">🪙</span>
-          <b>${fmt(currencies.gold)}</b>
-          <span>Gold</span>
-        </div>
-
-
-        <div class="tile">
-          <span class="emoji">💎</span>
-          <b>${fmt(currencies.diamonds)}</b>
-          <span>Diamanten</span>
-        </div>
-
-
-        <div class="tile">
-          <span class="emoji">🏆</span>
-          <b>${fmt(ranking.honor)}</b>
-          <span>Ruhm</span>
-        </div>
-
-
-        ${
-          energy != null
-            ? `
-              <div class="tile">
-                <span class="emoji">⚡</span>
-                <b>${fmt(energy)}</b>
-                <span>Energie</span>
-              </div>
-            `
-            : ''
-        }
-
-
-        ${
-          servants != null
-            ? `
-              <div class="tile">
-                <span class="emoji">🧑‍🌾</span>
-                <b>
-                  ${
-                    fmt(
-                      metricNumber(servants)
-                      ??
-                      servants
-                    )
-                  }
-                </b>
-                <span>Leibeigene</span>
-              </div>
-            `
-            : ''
-        }
-
-
-        ${
-          arrows != null
-            ? `
-              <div class="tile">
-                <span class="emoji">🎯</span>
-                <b>
-                  ${
-                    fmt(
-                      metricNumber(arrows)
-                      ??
-                      arrows
-                    )
-                  }
-                </b>
-                <span>Pfeilmacher</span>
-              </div>
-            `
-            : ''
-        }
-
-
-        ${
-          hp != null
-            ? `
-              <div class="tile">
-                <span class="emoji">❤️</span>
-                <b>${fmt(hp)}</b>
-                <span>Lebenspunkte</span>
-              </div>
-            `
-            : ''
-        }
-
-      </div>
-
+      <b>${esc(fmt(value))}</b>
     </div>
   `;
 }
 
+/* -------------------------------------------------
+   SHOP
+------------------------------------------------- */
 
-/* BUFFS + TRÄNKE */
+function extractShopOffers(data) {
+  if (!data) return [];
 
-function mergedEffects(){
-
-  const buffs =
-    S.data.buffs
-    ||
-    {};
-
-
-  const potions =
-    S.data.potions
-    ||
-    {};
-
-
-  const result =
-    [];
-
-
-  for(
-    const item
-    of (
-      buffs.buffs
-      ||
-      []
-    )
-  ){
-
-    result.push({
-      ...item,
-      bad:false,
-      kind:'buff'
-    });
-  }
-
-
-  for(
-    const item
-    of (
-      buffs.debuffs
-      ||
-      []
-    )
-  ){
-
-    result.push({
-      ...item,
-      bad:true,
-      kind:'debuff'
-    });
-  }
-
-
-  for(
-    const item
-    of (
-      potions.potions
-      ||
-      []
-    )
-  ){
-
-    const duplicate =
-      result.some(
-        effect =>
-          effect.id ===
-          item.id
-
-          ||
-
-          String(
-            effect.source_item?.name
-            ||
-            ''
-          )
-          .toLowerCase()
-          ===
-          String(
-            item.name
-            ||
-            ''
-          )
-          .toLowerCase()
-      );
-
-
-    if(
-      !duplicate
-    ){
-
-      result.push({
-        ...item,
-        bad:false,
-        kind:'potion',
-        type:'potion'
-      });
-    }
-  }
-
-
-  return result;
-}
-
-
-function buffs(){
-
-  const all =
-    mergedEffects();
-
-
-  return `
-    <div class="panel priority">
-
-      <div class="panelHead">
-
-        <div>
-
-          <div class="eyebrow">
-            AKTUELLER BUFF
-          </div>
-
-          <h2>
-            ⏱️ Aktive Wirkungen
-          </h2>
-
-        </div>
-
-        <span class="badge">
-          ${all.length}
-        </span>
-
-      </div>
-
-
-      ${
-        all.length
-
-          ? `
-            <div class="list">
-
-              ${
-                all
-
-                .sort(
-                  (a,b) =>
-                    (
-                      expiry(a)
-                      ||
-                      Infinity
-                    )
-                    -
-                    (
-                      expiry(b)
-                      ||
-                      Infinity
-                    )
-                )
-
-                .map(
-                  item => {
-
-                    const end =
-                      expiry(
-                        item
-                      );
-
-
-                    const meta =
-                      EFFECT[
-                        item.type
-                      ]
-                      ||
-                      {};
-
-
-                    const name =
-                      item.kind ===
-                      'potion'
-
-                        ? (
-                          ITEM_NAME_DE[
-                            String(
-                              item.name
-                              ||
-                              ''
-                            )
-                            .toLowerCase()
-                          ]
-                          ||
-                          item.name
-                          ||
-                          'Trank'
-                        )
-
-                        : (
-                          meta.name
-                          ||
-                          item.name
-                          ||
-                          item.type
-                          ||
-                          'Wirkung'
-                        );
-
-
-                    const description =
-                      item.kind ===
-                      'potion'
-
-                        ? 'Aktiver Trank'
-
-                        : (
-                          meta.desc
-                          ||
-                          'Aktiver Effekt'
-                        );
-
-
-                    return `
-                      <div class="row">
-
-                        <div class="rowMain">
-
-                          <div class="rowTitle">
-
-                            ${
-                              item.bad
-                                ? '☠️'
-                                : '✨'
-                            }
-
-                            ${esc(name)}
-
-                          </div>
-
-                          <div class="rowMeta">
-                            ${esc(description)}
-                          </div>
-
-                        </div>
-
-
-                        <div
-                          class="timer"
-
-                          ${
-                            end
-                              ? `data-expires="${end}"`
-                              : ''
-                          }
-                        >
-
-                          ${
-                            end
-
-                              ? t(
-                                  (
-                                    end
-                                    -
-                                    Date.now()
-                                  )
-                                  /
-                                  1000
-                                )
-
-                              : (
-                                item.remaining_minutes
-                                != null
-
-                                  ? (
-                                    `${fmt(
-                                      item.remaining_minutes
-                                    )} Min`
-                                  )
-
-                                  : '–'
-                              )
-                          }
-
-                        </div>
-
-                      </div>
-                    `;
-                  }
-                )
-                .join('')
-              }
-
-            </div>
-          `
-
-          : `
-            <div class="empty">
-              Keine aktiven Buffs, Debuffs oder Tränke.
-            </div>
-          `
-      }
-
-    </div>
-  `;
-}
-
-
-/* SHOP */
-
-function extractShopOffers(data){
-
-  if(
-    Array.isArray(
-      data
-    )
-  ){
+  if (Array.isArray(data)) {
     return data;
   }
 
-
-  if(
-    !data
-    ||
-    typeof data !==
-    'object'
-  ){
-    return [];
-  }
-
-
   const candidates = [
-
     data.offers,
-
     data.items,
-
-    data.current_offers,
-
-    data.currentOffers,
-
     data.shop?.offers,
-
     data.shop?.items,
-
-    data.data?.offers,
-
-    data.data?.items
-
+    data.current_offers,
+    data.current?.offers,
+    data.current?.items
   ];
 
-
-  for(
-    const candidate
-    of candidates
-  ){
-
-    if(
-      Array.isArray(
-        candidate
-      )
-    ){
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
       return candidate;
     }
   }
 
-
   return [];
 }
 
+function shopCurrency(offer) {
+  const currency =
+    offer.currency ||
+    offer.price_currency ||
+    offer.cost_currency ||
+    '';
 
-function shop(){
+  switch (String(currency).toLowerCase()) {
+    case 'gold':
+      return '🪙 Gold';
 
+    case 'diamond':
+    case 'diamonds':
+      return '💎 Diamanten';
+
+    case 'honor':
+      return '🏆 Ruhm';
+
+    default:
+      return currency;
+  }
+}
+
+function renderShop() {
   const offers =
-    extractShopOffers(
-      S.data.shop
-    );
+    extractShopOffers(S.data.shop);
 
-
-  return `
-    <div class="panel priority">
-
-      <div class="panelHead">
-
-        <div>
-
-          <div class="eyebrow">
-            AKTUELL
+  if (!offers.length) {
+    return `
+      <div class="panel shopPanel">
+        <div class="panelHead">
+          <div>
+            <div class="eyebrow">AKTUELL</div>
+            <h2>🛒 Shop</h2>
           </div>
 
-          <h2>
-            🛒 Shop
-          </h2>
+          <span class="badge">0</span>
+        </div>
 
+        <div class="empty">
+          Die Shop-API meldet derzeit keine Angebote.
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="panel shopPanel">
+      <div class="panelHead">
+        <div>
+          <div class="eyebrow">AKTUELL</div>
+          <h2>🛒 Shop</h2>
         </div>
 
         <span class="badge">
           ${offers.length}
         </span>
-
       </div>
 
+      <div class="shopGrid">
+        ${offers.map(offer => {
+          const name =
+            offer.item_name_de ||
+            offer.name_de ||
+            itemName(offer);
 
-      ${
-        offers.length
+          const amount =
+            val(
+              offer.amount,
+              offer.quantity,
+              offer.count
+            );
 
-          ? `
-            <div class="itemGrid">
+          const price =
+            val(
+              offer.price,
+              offer.cost,
+              offer.price_amount
+            );
 
-              ${
-                offers
+          const currency =
+            shopCurrency(offer);
 
-                .map(
-                  offer => {
+          return `
+            <div class="shopItem">
+              <div class="shopItemName">
+                🎁
+                ${amount && amount !== 1
+                  ? `${fmt(amount)} × `
+                  : ''}
+                ${esc(name)}
+              </div>
 
-                    const rawName =
-                      offer.item_name
-                      ??
-                      offer.name
-                      ??
-                      offer.title
-                      ??
-                      offer.item?.name_de
-                      ??
-                      offer.item?.name
-                      ??
-                      `Gegenstand ${
-                        offer.item_id
-                        ??
-                        offer.id
-                        ??
-                        ''
-                      }`;
-
-
-                    const name =
-                      ITEM_NAME_DE[
-                        String(
-                          rawName
-                        )
-                        .toLowerCase()
-                      ]
-                      ||
-                      rawName;
-
-
-                    const price =
-                      offer.price
-                      ??
-                      offer.cost
-                      ??
-                      offer.amount
-                      ??
-                      offer.value;
-
-
-                    const currency =
-                      String(
-                        offer.currency
-                        ??
-                        offer.currency_name
-                        ??
-                        offer.cost_currency
-                        ??
-                        ''
-                      )
-                      .toLowerCase();
-
-
-                    const currencyText =
-                      currency.includes(
-                        'diamond'
-                      )
-
-                        ? '💎 Diamanten'
-
-                        : (
-                          currency.includes(
-                            'gold'
-                          )
-
-                            ? '🪙 Gold'
-
-                            : currency
-                        );
-
-
-                    return `
-                      <div class="item">
-
-                        <b>
-                          ${esc(name)}
-                        </b>
-
-                        <small>
-
-                          ${fmt(price)}
-
-                          ${esc(currencyText)}
-
-                        </small>
-
-                      </div>
-                    `;
-                  }
-                )
-
-                .join('')
-              }
-
+              <div class="shopPrice">
+                ${esc(fmt(price))}
+                ${currency
+                  ? ` ${esc(currency)}`
+                  : ''}
+              </div>
             </div>
-          `
-
-          : `
-            <div class="empty">
-              Die Shop-API meldet derzeit keine Angebote.
-            </div>
-          `
-      }
-
+          `;
+        }).join('')}
+      </div>
     </div>
   `;
 }
 
+async function refreshShopOnly() {
+  try {
+    S.data.shop =
+      await api('/v1/game/shop');
 
-/* EVENTS */
-
-function isActiveEvent(
-  value
-){
-
-  if(
-    value === true
-  ){
     return true;
-  }
-
-
-  if(
-    !value
-    ||
-    typeof value !==
-    'object'
-  ){
+  } catch {
     return false;
   }
+}
 
+/* -------------------------------------------------
+   BUFFS
+------------------------------------------------- */
 
-  if(
-    value.active === true
-    ||
-    value.is_active === true
-  ){
-    return true;
+function expiry(obj) {
+  if (!obj || typeof obj !== 'object') {
+    return null;
   }
 
+  const raw =
+    obj.expires_at ??
+    obj.finishes_at;
 
-  return [
-    'active',
-    'running',
-    'registration',
-    'fighting',
-    'ceremony'
-  ]
-  .includes(
-    String(
-      value.status
-      ??
-      value.state
-      ??
-      ''
+  if (raw != null) {
+    const n = Number(raw);
+
+    if (Number.isFinite(n)) {
+      return n > 2e12 ? n : n * 1000;
+    }
+
+    const parsed = Date.parse(raw);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  const date =
+    Date.parse(obj.expires_datetime || '');
+
+  if (Number.isFinite(date)) {
+    return date;
+  }
+
+  if (
+    Number.isFinite(
+      Number(obj.remaining_seconds)
     )
-    .toLowerCase()
+  ) {
+    return (
+      Date.now() +
+      Number(obj.remaining_seconds) * 1000
+    );
+  }
+
+  if (
+    Number.isFinite(
+      Number(obj.remaining_minutes)
+    )
+  ) {
+    return (
+      Date.now() +
+      Number(obj.remaining_minutes) * 60000
+    );
+  }
+
+  return null;
+}
+
+function timeLeft(seconds) {
+  let sec =
+    Math.max(
+      0,
+      Math.ceil(Number(seconds) || 0)
+    );
+
+  const hours =
+    Math.floor(sec / 3600);
+
+  const minutes =
+    Math.floor((sec % 3600) / 60);
+
+  const rest =
+    sec % 60;
+
+  if (hours) {
+    return (
+      `${hours}:` +
+      `${String(minutes).padStart(2, '0')}:` +
+      `${String(rest).padStart(2, '0')}`
+    );
+  }
+
+  return (
+    `${minutes}:` +
+    `${String(rest).padStart(2, '0')}`
   );
 }
 
+function renderBuffs() {
+  const data = S.data.buffs || {};
 
-function activeEvents(){
+  const buffs =
+    Array.isArray(data.buffs)
+      ? data.buffs
+      : [];
 
-  const live =
-    S.data.live
-    ||
-    {};
+  const debuffs =
+    Array.isArray(data.debuffs)
+      ? data.debuffs
+      : [];
 
+  const all = [
+    ...buffs.map(x => ({
+      ...x,
+      negative: false
+    })),
+    ...debuffs.map(x => ({
+      ...x,
+      negative: true
+    }))
+  ];
 
-  const result =
-    [];
+  return `
+    <div class="panel buffPanel">
+      <div class="panelHead">
+        <div>
+          <div class="eyebrow">
+            AKTUELLER BUFF
+          </div>
 
+          <h2>⏱️ Aktive Wirkungen</h2>
+        </div>
 
-  for(
-    const [
-      key,
-      value
-    ]
-    of Object.entries(
-      live.weekly_events
-      ||
-      {}
-    )
-  ){
+        <span class="badge">
+          ${all.length}
+        </span>
+      </div>
 
-    if(
-      !isActiveEvent(
-        value
-      )
-    ){
-      continue;
-    }
+      ${
+        all.length
+          ? all.map(effect => {
+              const end =
+                expiry(effect);
 
+              return `
+                <div class="effectCard
+                  ${effect.negative
+                    ? 'negative'
+                    : ''}">
+                  
+                  <div>
+                    <strong>
+                      ${esc(
+                        effect.name_de ||
+                        effect.name ||
+                        effect.type ||
+                        'Wirkung'
+                      )}
+                    </strong>
 
-    let name =
-      EVENT_NAMES[
-        key
-      ]
-      ||
-      key;
+                    ${
+                      effect.description
+                        ? `<small>
+                            ${esc(effect.description)}
+                           </small>`
+                        : ''
+                    }
+                  </div>
 
+                  ${
+                    end
+                      ? `<b
+                          class="countdown"
+                          data-expires="${end}">
+                          ${timeLeft(
+                            (end - Date.now()) /
+                            1000
+                          )}
+                         </b>`
+                      : ''
+                  }
+                </div>
+              `;
+            }).join('')
+          : `
+            <div class="empty">
+              Keine aktiven Buffs oder Debuffs.
+            </div>
+          `
+      }
+    </div>
+  `;
+}
 
-    let meta =
-      'Aktives Wochen-Event';
+/* -------------------------------------------------
+   LEVEL / XP
+------------------------------------------------- */
 
-
-    if(
-      key ===
-      'knight_games'
-    ){
-
-      name =
-        `Ritterspiele – ${
-          de(
-            value.status
-          )
-        }`;
-    }
-
-
-    if(
-      key ===
-      'castle_garden'
-      &&
-      value.merchant
-    ){
-
-      meta =
-        `Händler: ${
-          value.merchant
-        }`;
-    }
-
-
-    result.push({
-      name,
-      meta
-    });
-  }
-
-
-  for(
-    const [
-      key,
-      value
-    ]
-    of Object.entries(
-      live.events
-      ||
-      {}
-    )
-  ){
-
-    if(
-      !isActiveEvent(
-        value
-      )
-    ){
-      continue;
-    }
-
-
-    result.push({
-
-      name:
-        value?.name_de
-        ||
-        EVENT_NAMES[
-          key
+function xpInfo(profile, area) {
+  const roots =
+    area === 'combat'
+      ? [
+          profile.combat,
+          profile.combat_level,
+          profile.progress?.combat,
+          profile.level_progress
         ]
-        ||
-        key,
+      : [
+          profile.hunting,
+          profile.hunt,
+          profile.hunting_level,
+          profile.progress?.hunting
+        ];
 
-      meta:
-        value?.description_de
-        ||
-        'Aktives Sonder-Event'
-    });
+  for (const root of roots) {
+    if (!root || typeof root !== 'object') {
+      continue;
+    }
+
+    const current =
+      deepMetric(root, [
+        'xp.current',
+        'xp_current',
+        'current_xp',
+        'progress.current'
+      ]);
+
+    const needed =
+      deepMetric(root, [
+        'xp.needed',
+        'xp_needed',
+        'needed_xp',
+        'xp_to_next',
+        'next_xp',
+        'progress.needed',
+        'max_xp'
+      ]);
+
+    const percent =
+      deepMetric(root, [
+        'xp.percent',
+        'xp_percent',
+        'percent',
+        'progress.percent'
+      ]);
+
+    if (
+      current != null &&
+      needed != null &&
+      needed > 0
+    ) {
+      return {
+        current,
+        needed,
+        percent:
+          percent != null
+            ? percent
+            : current / needed * 100
+      };
+    }
   }
 
+  return null;
+}
+
+function levelProgressCard(
+  title,
+  icon,
+  level,
+  xp
+) {
+  if (!xp) {
+    return `
+      <div class="levelProgressCard">
+        <div class="levelProgressTop">
+          <strong>
+            ${icon} ${esc(title)}
+          </strong>
+
+          <b>
+            Level ${fmt(level)}
+          </b>
+        </div>
+      </div>
+    `;
+  }
+
+  const percent =
+    Math.max(
+      0,
+      Math.min(100, xp.percent || 0)
+    );
+
+  return `
+    <div class="levelProgressCard">
+      <div class="levelProgressTop">
+        <strong>
+          ${icon} ${esc(title)}
+        </strong>
+
+        <b>
+          Level ${fmt(level)}
+          (${Math.round(percent)}%)
+        </b>
+      </div>
+
+      ${progress(percent)}
+
+      <small>
+        ${fmt(xp.current)}
+        /
+        ${fmt(xp.needed)}
+        XP
+      </small>
+    </div>
+  `;
+}
+
+/* -------------------------------------------------
+   SCHNELLÜBERSICHT
+------------------------------------------------- */
+
+function upgradeTiles() {
+  const p = S.data.profile || {};
+  const smith = S.data.blacksmith || {};
+
+  const sword =
+    deepMetric(smith, [
+      'sword.level',
+      'sword.current_level'
+    ]) ??
+    deepMetric(p, [
+      'upgrades.sword'
+    ]);
+
+  const armor =
+    deepMetric(smith, [
+      'armor.level',
+      'armor.current_level'
+    ]) ??
+    deepMetric(p, [
+      'upgrades.armor'
+    ]);
+
+  const shelter =
+    deepMetric(smith, [
+      'shelter.level',
+      'shelter.current_level',
+      'housing.level'
+    ]) ??
+    deepMetric(p, [
+      'upgrades.shelter'
+    ]);
+
+  return `
+    <div class="quickUpgrades">
+      <div class="upgradeTile">
+        <span class="upgradeIcon">⚔️</span>
+        <b>${fmt(sword)}</b>
+        <small>Schwert</small>
+      </div>
+
+      <div class="upgradeTile">
+        <span class="upgradeIcon">🛡️</span>
+        <b>${fmt(armor)}</b>
+        <small>Rüstung</small>
+      </div>
+
+      <div class="upgradeTile">
+        <span class="upgradeIcon">🏠</span>
+        <b>${fmt(shelter)}</b>
+        <small>Unterkunft</small>
+      </div>
+    </div>
+  `;
+}
+
+/* -------------------------------------------------
+   ÜBERSICHT
+------------------------------------------------- */
+
+function overview() {
+  const p =
+    S.data.profile || {};
+
+  const currencies =
+    p.currencies || {};
+
+  const combat =
+    p.combat || {};
+
+  const hunting =
+    p.hunting || {};
+
+  const energy =
+    metricNumber(
+      val(
+        p.energy,
+        p.status?.energy
+      )
+    );
+
+  const servants =
+    metricNumber(
+      val(
+        p.servants,
+        p.currencies?.servants
+      )
+    );
+
+  return `
+    <div class="pageHeader">
+      <h2>Übersicht</h2>
+      <small>
+        Wischen für weitere Bereiche →
+      </small>
+    </div>
+
+    <div class="heroCard">
+      <div class="heroTop">
+        <div>
+          <h2>
+            ${esc(
+              p.name ||
+              'Ritter'
+            )}
+          </h2>
+
+          <strong class="goldText">
+            ${esc(
+              p.rank?.title ||
+              ''
+            )}
+
+            ${
+              p.title
+                ? ` · ${esc(p.title)}`
+                : ''
+            }
+
+            ${
+              p.ranking?.division
+                ? ` · Division ${fmt(
+                    p.ranking.division
+                  )}`
+                : ''
+            }
+          </strong>
+
+          <div class="muted">
+            📍
+            ${
+              p.status?.location_de ||
+              p.status?.location ||
+              'Unterwegs'
+            }
+          </div>
+        </div>
+
+        <span class="statusPill">
+          ${
+            p.status?.online
+              ? 'ONLINE'
+              : 'OFFLINE'
+          }
+        </span>
+      </div>
+
+      <div class="heroStats">
+        <div class="statTile">
+          <span>⚔️</span>
+          <b>${fmt(p.level)}</b>
+          <small>LEVEL</small>
+        </div>
+
+        <div class="statTile">
+          <span>🪙</span>
+          <b>${fmt(currencies.gold)}</b>
+          <small>GOLD</small>
+        </div>
+
+        <div class="statTile">
+          <span>💎</span>
+          <b>${fmt(currencies.diamonds)}</b>
+          <small>DIAMANTEN</small>
+        </div>
+
+        <div class="statTile">
+          <span>🏆</span>
+          <b>${fmt(currencies.honor)}</b>
+          <small>RUHM</small>
+        </div>
+
+        <div class="statTile">
+          <span>⚡</span>
+          <b>${fmt(energy)}</b>
+          <small>ENERGIE</small>
+        </div>
+
+        <div class="statTile">
+          <span>👨‍🌾</span>
+          <b>${fmt(servants)}</b>
+          <small>LEIBEIGENE</small>
+        </div>
+
+        <div class="statTile">
+          <span>🎯</span>
+          <b>
+            ${fmt(
+              val(
+                p.arrow_makers,
+                p.arrowmakers,
+                p.currencies?.arrow_makers
+              )
+            )}
+          </b>
+          <small>PFEILMACHER</small>
+        </div>
+
+        <div class="statTile">
+          <span>❤️</span>
+          <b>
+            ${fmt(
+              deepMetric(p, [
+                'combat.hp.total',
+                'combat.health.total',
+                'combat.hp'
+              ])
+            )}
+          </b>
+          <small>LEBENSPUNKTE</small>
+        </div>
+      </div>
+    </div>
+
+    ${upgradeTiles()}
+
+    ${renderBuffs()}
+
+    ${renderShop()}
+
+    ${renderEvents()}
+  `;
+}
+
+/* -------------------------------------------------
+   JAGD
+------------------------------------------------- */
+
+function huntingValues() {
+  const p =
+    S.data.profile || {};
+
+  const h =
+    p.hunting || {};
+
+  const level =
+    deepMetric(h, [
+      'level',
+      'hunt_level'
+    ]);
+
+  const points =
+    deepMetric(h, [
+      'points',
+      'hunting_points',
+      'hunt_points'
+    ]);
+
+  const kills =
+    deepMetric(h, [
+      'kills',
+      'orcs_killed',
+      'total_kills'
+    ]);
+
+  /*
+   * WICHTIG:
+   * Durchschlagskraft, Genauigkeit und Spurenlesen
+   * können von der API als Objekt zurückkommen.
+   */
+  const breakthrough =
+    deepMetric(h, [
+      'breakthrough',
+      'breakthrough_power',
+      'attributes.breakthrough',
+      'stats.breakthrough',
+      'skills.breakthrough'
+    ]);
+
+  const accuracy =
+    deepMetric(h, [
+      'accuracy',
+      'aim',
+      'attributes.accuracy',
+      'attributes.aim',
+      'stats.accuracy',
+      'stats.aim'
+    ]);
+
+  const tracks =
+    deepMetric(h, [
+      'marks',
+      'tracking',
+      'tracks',
+      'track_reading',
+      'attributes.marks',
+      'attributes.tracking',
+      'stats.marks'
+    ]);
+
+  const xp =
+    xpInfo(p, 'hunting');
+
+  return `
+    <div class="panel">
+      <div class="panelHead">
+        <h2>🏹 Jagd</h2>
+      </div>
+
+      ${
+        levelProgressCard(
+          'Jagdlevel',
+          '🌲',
+          level,
+          xp
+        )
+      }
+
+      ${row(
+        'Jagdpunkte',
+        points,
+        '',
+        '🦌'
+      )}
+
+      ${row(
+        'Abschüsse',
+        kills,
+        '',
+        '💀'
+      )}
+
+      ${row(
+        'Durchschlagskraft',
+        breakthrough,
+        '',
+        '💣'
+      )}
+
+      ${row(
+        'Genauigkeit',
+        accuracy,
+        '',
+        '🎯'
+      )}
+
+      ${row(
+        'Spuren lesen',
+        tracks,
+        '',
+        '🐾'
+      )}
+    </div>
+  `;
+}
+
+/* -------------------------------------------------
+   KAMPFWERTE
+------------------------------------------------- */
+
+function combatValues() {
+  const p =
+    S.data.profile || {};
+
+  const c =
+    p.combat || {};
+
+  const hp =
+    deepMetric(c, [
+      'hp.total',
+      'health.total',
+      'hp'
+    ]);
+
+  const strength =
+    deepMetric(c, [
+      'strength.total',
+      'strength'
+    ]);
+
+  const defense =
+    deepMetric(c, [
+      'defense.total',
+      'defence.total',
+      'defense',
+      'defence'
+    ]);
+
+  const speed =
+    deepMetric(c, [
+      'speed.total',
+      'speed'
+    ]);
+
+  const luck =
+    deepMetric(c, [
+      'luck.total',
+      'luck'
+    ]);
+
+  const rank =
+    val(
+      p.ranking?.activity?.rank,
+      p.ranking?.activity_rank
+    );
+
+  const total =
+    val(
+      p.ranking?.activity?.total,
+      p.ranking?.activity_total
+    );
+
+  const better =
+    val(
+      p.ranking?.activity?.better_than_percent,
+      p.ranking?.better_than_percent
+    );
+
+  const xp =
+    xpInfo(p, 'combat');
+
+  return `
+    <div class="panel">
+      <div class="panelHead">
+        <h2>⚔️ Kampfwerte</h2>
+      </div>
+
+      ${levelProgressCard(
+        'Kampflevel',
+        '🏅',
+        p.level,
+        xp
+      )}
+
+      ${row(
+        'Lebenspunkte',
+        hp,
+        '',
+        '❤️'
+      )}
+
+      ${row(
+        'Stärke',
+        strength,
+        '',
+        '💣'
+      )}
+
+      ${row(
+        'Verteidigung',
+        defense,
+        '',
+        '🛡️'
+      )}
+
+      ${row(
+        'Geschwindigkeit',
+        speed,
+        '',
+        '🥕'
+      )}
+
+      ${row(
+        'Glück',
+        luck,
+        '',
+        '🧲'
+      )}
+
+      ${row(
+        'Aktivitätsrang',
+        rank != null
+          ? `${fmt(rank)} / ${fmt(total)}`
+          : '–',
+        better != null
+          ? `${fmt(better)} % besser als Vergleichsgruppe`
+          : '',
+        '📈'
+      )}
+    </div>
+  `;
+}
+
+/* -------------------------------------------------
+   SCHMIED
+------------------------------------------------- */
+
+function blacksmithCard() {
+  const d =
+    S.data.blacksmith || {};
+
+  function smithItem(
+    name,
+    icon,
+    obj
+  ) {
+    if (!obj) return '';
+
+    const level =
+      metricNumber(
+        val(
+          obj.level,
+          obj.current_level
+        )
+      );
+
+    const end =
+      expiry(obj);
+
+    return `
+      <div class="smithTile">
+        <span>${icon}</span>
+        <b>${fmt(level)}</b>
+        <small>${esc(name)}</small>
+
+        ${
+          obj.in_progress && end
+            ? `
+              <em
+                data-expires="${end}">
+                ${timeLeft(
+                  (end - Date.now()) /
+                  1000
+                )}
+              </em>
+            `
+            : ''
+        }
+      </div>
+    `;
+  }
+
+  return `
+    <div class="panel">
+      <div class="panelHead">
+        <h2>🔨 Schmied</h2>
+      </div>
+
+      <div class="smithGrid">
+        ${smithItem(
+          'Schwert',
+          '⚔️',
+          d.sword
+        )}
+
+        ${smithItem(
+          'Rüstung',
+          '🛡️',
+          d.armor
+        )}
+
+        ${smithItem(
+          'Unterkunft',
+          '🏠',
+          d.shelter
+        )}
+      </div>
+    </div>
+  `;
+}
+
+function knight() {
+  const p =
+    S.data.profile || {};
+
+  return `
+    <div class="pageHeader">
+      <h2>Mein Ritter</h2>
+      <small>
+        ${esc(p.name || '')}
+      </small>
+    </div>
+
+    ${combatValues()}
+    ${huntingValues()}
+    ${blacksmithCard()}
+  `;
+}
+
+/* -------------------------------------------------
+   RUCKSACK
+------------------------------------------------- */
+
+function backpack() {
+  const d =
+    S.data.backpack || {};
+
+  const items =
+    Array.isArray(d.items)
+      ? d.items
+      : [];
+
+  const groups = {};
+
+  for (const item of items) {
+    const category =
+      CATEGORY_DE[item.category] ||
+      item.category ||
+      'Sonstiges';
+
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+
+    groups[category].push(item);
+  }
+
+  return `
+    <div class="pageHeader">
+      <h2>Rucksack</h2>
+      <small>
+        ${fmt(
+          d.total_items ??
+          items.length
+        )}
+        Gegenstände
+      </small>
+    </div>
+
+    ${
+      Object.keys(groups).length
+        ? Object.entries(groups)
+            .map(([category, list]) => `
+              <div class="panel category">
+                <h3>
+                  ${esc(category)}
+                  <span class="tiny muted">
+                    ${list.length}
+                  </span>
+                </h3>
+
+                <div class="itemGrid">
+                  ${list.map(item => {
+                    const description =
+                      item.description_de ||
+                      item.description ||
+                      '';
+
+                    return `
+                      <details class="item">
+                        <summary>
+                          ${fmt(item.amount)}
+                          ×
+                          ${esc(itemName(item))}
+                        </summary>
+
+                        <div class="itemDescription">
+                          ${
+                            description
+                              ? esc(description)
+                              : 'Keine zusätzliche Beschreibung verfügbar.'
+                          }
+                        </div>
+                      </details>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `).join('')
+        : `
+          <div class="panel empty">
+            Rucksackdaten sind derzeit
+            nicht verfügbar.
+          </div>
+        `
+    }
+  `;
+}
+
+/* -------------------------------------------------
+   EVENTS
+------------------------------------------------- */
+
+function collectEvents() {
+  const live =
+    S.data.live || {};
+
+  const result = [];
+
+  const sources = [
+    live.events,
+    live.current_events,
+    live.active_events,
+    live.weekly_events
+  ];
+
+  for (const source of sources) {
+    if (!source) continue;
+
+    if (Array.isArray(source)) {
+      for (const event of source) {
+        if (
+          event &&
+          event.active !== false &&
+          String(
+            event.status || ''
+          ).toLowerCase() !== 'closed'
+        ) {
+          result.push(event);
+        }
+      }
+    } else if (
+      typeof source === 'object'
+    ) {
+      for (const [key, event] of
+        Object.entries(source)) {
+
+        if (!event) continue;
+
+        if (
+          typeof event === 'object' &&
+          event.active !== false &&
+          String(
+            event.status || ''
+          ).toLowerCase() !== 'closed'
+        ) {
+          result.push({
+            ident: key,
+            ...event
+          });
+        }
+      }
+    }
+  }
 
   return result;
 }
 
-
-function upcoming(){
-
-  const today =
-    new Date()
-      .getDay();
-
-
-  return WEEK
-
-    .map(
-      event => ({
-        ...event,
-
-        delta:
-          (
-            event.day
-            -
-            today
-            +
-            7
-          )
-          %
-          7
-          ||
-          7
-      })
-    )
-
-    .sort(
-      (a,b) =>
-        a.delta
-        -
-        b.delta
-    )
-
-    .slice(
-      0,
-      3
-    );
-}
-
-
-function when(days){
-
-  if(
-    days === 1
-  ){
-    return 'Morgen';
-  }
-
-
-  if(
-    days === 2
-  ){
-    return 'Übermorgen';
-  }
-
-
-  return (
-    `In ${days} Tagen`
-  );
-}
-
-
-function events(){
-
-  const now =
-    activeEvents();
-
-
-  const next =
-    upcoming();
-
+function renderEvents() {
+  const events =
+    collectEvents();
 
   return `
-    <div class="panel events">
-
+    <div class="panel eventPanel">
       <div class="panelHead">
-
         <div>
-
           <div class="eyebrow">
             EVENTS
           </div>
 
           <h2>
-            📅 Jetzt & als Nächstes
+            📅 Aktuelle Events
           </h2>
-
         </div>
 
-      </div>
-
-
-      <div class="grid2">
-
-
-        <div>
-
-          <div class="sectionTitle">
-            Läuft gerade
-          </div>
-
-          ${
-            now.length
-
-              ? now
-                .map(
-                  event => `
-                    <div class="eventCard">
-
-                      <div class="eventTop">
-
-                        <span>
-
-                          ✨
-
-                          ${esc(
-                            event.name
-                          )}
-
-                        </span>
-
-                        <span class="eventWhen">
-                          JETZT
-                        </span>
-
-                      </div>
-
-                      <div class="rowMeta">
-                        ${esc(event.meta)}
-                      </div>
-
-                    </div>
-                  `
-                )
-                .join('')
-
-              : `
-                <div class="empty">
-                  Gerade läuft kein besonderes Event.
-                </div>
-              `
-          }
-
-        </div>
-
-
-        <div>
-
-          <div class="sectionTitle">
-            Als Nächstes
-          </div>
-
-          ${
-            next
-
-            .map(
-              event => `
-                <div class="eventCard eventNext">
-
-                  <div class="eventTop">
-
-                    <span>
-
-                      ${event.icon}
-
-                      ${esc(
-                        event.name
-                      )}
-
-                    </span>
-
-                    <span class="eventWhen">
-
-                      ${when(
-                        event.delta
-                      )}
-
-                    </span>
-
-                  </div>
-
-                  <div class="rowMeta">
-                    ${esc(event.desc)}
-                  </div>
-
-                </div>
-              `
-            )
-
-            .join('')
-          }
-
-        </div>
-
-      </div>
-
-    </div>
-  `;
-}
-
-
-/* SCHNELLÜBERSICHT */
-
-function quickStatus(){
-
-  const profile =
-    S.data.profile
-    ||
-    {};
-
-
-  const ranking =
-    profile.ranking
-    ||
-    {};
-
-
-  const activity =
-    ranking.activity_rank
-    ||
-    {};
-
-
-  const hunting =
-    profile.hunting
-    ||
-    {};
-
-
-  const upgrades =
-    profile.upgrades
-    ||
-    {};
-
-
-  const stats =
-    S.data.stats
-    ||
-    {};
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-
-        <h2>
-          📊 Schnellübersicht
-        </h2>
-
-        <span class="tiny muted">
-
-          ${
-            new Date()
-            .toLocaleTimeString(
-              'de-DE',
-              {
-                hour:'2-digit',
-                minute:'2-digit'
-              }
-            )
-          }
-
+        <span class="badge">
+          ${events.length}
         </span>
-
       </div>
-
-
-      <div class="grid3">
-
-        <div class="tile">
-
-          <b>
-            ${
-              fmt(
-                ranking.position
-                ??
-                profile.rank?.number
-              )
-            }
-          </b>
-
-          <span>Rang</span>
-
-        </div>
-
-
-        <div class="tile">
-
-          <b>
-
-            ${fmt(activity.rank)}
-
-            /
-
-            ${fmt(activity.max_rank)}
-
-          </b>
-
-          <span>Aktivität</span>
-
-        </div>
-
-
-        <div class="tile">
-
-          <b>
-            ${fmt(hunting.level)}
-          </b>
-
-          <span>Jagdlevel</span>
-
-        </div>
-
-
-        <div class="tile">
-
-          <b>
-            ${fmt(profile.progress?.tower)}
-          </b>
-
-          <span>Turm-Ebene</span>
-
-        </div>
-
-
-        <div class="tile">
-
-          <b>
-
-            ${fmt(upgrades.sword)}
-
-            /
-
-            ${fmt(upgrades.armor)}
-
-            /
-
-            ${fmt(upgrades.shelter)}
-
-          </b>
-
-          <span>
-            Schwert/Rüstung/Unterkunft
-          </span>
-
-        </div>
-
-
-        <div class="tile">
-
-          <b>
-            ${fmt(stats.pvp?.winrate)}%
-          </b>
-
-          <span>PvP-Siegquote</span>
-
-        </div>
-
-      </div>
-
-    </div>
-  `;
-}
-
-
-function overview(){
-
-  return `
-
-    <div class="pageHeader">
-
-      <h2>
-        Übersicht
-      </h2>
-
-      <small>
-        Wischen für weitere Bereiche →
-      </small>
-
-    </div>
-
-
-    ${hero()}
-
-    ${buffs()}
-
-    ${shop()}
-
-    ${events()}
-
-    ${quickStatus()}
-
-  `;
-}
-
-
-/* KAMPFWERTE */
-
-function combatValues(){
-
-  const profile =
-    S.data.profile
-    ||
-    {};
-
-
-  const combat =
-    profile.combat
-    ||
-    {};
-
-
-  const activity =
-    profile.ranking
-      ?.activity_rank
-    ||
-    {};
-
-
-  const values = [
-
-    [
-      'Lebenspunkte',
-
-      metricNumber(
-        combat.hp
-      ),
-
-      '❤️'
-    ],
-
-    [
-      'Stärke',
-
-      metricNumber(
-        combat.strength
-      ),
-
-      '💣'
-    ],
-
-    [
-      'Verteidigung',
-
-      metricNumber(
-        combat.defense
-      ),
-
-      '🛡️'
-    ],
-
-    [
-      'Geschwindigkeit',
-
-      metricNumber(
-        combat.speed
-      ),
-
-      '🥕'
-    ],
-
-    [
-      'Glück',
-
-      metricNumber(
-        combat.luck
-      ),
-
-      '🧲'
-    ],
-
-    [
-      'Kritisch',
-
-      metricNumber(
-        combat.critical
-        ??
-        combat.crit
-      ),
-
-      '💀'
-    ]
-
-  ]
-  .filter(
-    item =>
-      item[1] != null
-  );
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          ⚔️ Kampfwerte
-        </h2>
-      </div>
-
 
       ${
-        values.length
+        events.length
+          ? events.map(event => `
+              <div class="eventCard">
+                <strong>
+                  ${esc(
+                    event.name_de ||
+                    event.title_de ||
+                    event.name ||
+                    event.title ||
+                    event.ident ||
+                    'Event'
+                  )}
+                </strong>
 
-          ? values
-            .map(
-              item =>
-                row(
-                  item[0],
-                  item[1],
-                  '',
-                  item[2]
-                )
-            )
-            .join('')
-
+                ${
+                  event.description_de ||
+                  event.description
+                    ? `
+                      <small>
+                        ${esc(
+                          event.description_de ||
+                          event.description
+                        )}
+                      </small>
+                    `
+                    : ''
+                }
+              </div>
+            `).join('')
           : `
             <div class="empty">
-              Keine detaillierten Kampfwerte verfügbar.
+              Momentan läuft kein
+              gemeldetes Event.
             </div>
           `
       }
+    </div>
+  `;
+}
 
+/* -------------------------------------------------
+   WELT
+------------------------------------------------- */
+
+function forestCard() {
+  const d =
+    S.data.forest || {};
+
+  const captain =
+    d.orc_king ||
+    d.orc_captain ||
+    {};
+
+  const dragon =
+    d.dragon || {};
+
+  return `
+    <div class="panel">
+      <div class="panelHead">
+        <h2>🌲 Düsterwald</h2>
+      </div>
 
       ${
-        activity.rank != null
-
+        Object.keys(captain).length
           ? row(
-
-              'Aktivitätsrang',
-
-              `${
-                activity.rank
-              } / ${
-                activity.max_rank
-              }`,
-
-              `${
-                fmt(
-                  activity
-                  .better_than_percent
-                )
-              } % besser als Vergleichsgruppe`,
-
-              '📈'
+              'Ork-Hauptmann',
+              captain.alive
+                ? 'Lebt'
+                : 'Besiegt',
+              captain.hp_percent != null
+                ? `${fmt(
+                    captain.hp_percent
+                  )} % Leben`
+                : '',
+              '👑'
             )
-
           : ''
       }
 
-    </div>
-  `;
-}
-
-
-/* JAGD */
-
-function hunting(){
-
-  const hunting =
-    S.data.profile
-      ?.hunting
-    ||
-    {};
-
-
-  const values = [
-
-    [
-      'Jagdlevel',
-
-      metricNumber(
-        hunting.level
-      ),
-
-      '🌲'
-    ],
-
-    [
-      'Jagdpunkte',
-
-      metricNumber(
-        hunting.points
-      ),
-
-      '🦌'
-    ],
-
-    [
-      'Abschüsse',
-
-      metricNumber(
-        hunting.kills
-      ),
-
-      '💀'
-    ],
-
-    [
-      'Durchschlagskraft',
-
-      metricNumber(
-        hunting.breakthrough
-        ??
-        hunting.breakthrough_power
-      ),
-
-      '💣'
-    ],
-
-    [
-      'Genauigkeit',
-
-      metricNumber(
-        hunting.aim
-        ??
-        hunting.accuracy
-      ),
-
-      '🎯'
-    ],
-
-    [
-      'Spuren lesen',
-
-      metricNumber(
-        hunting.marks
-        ??
-        hunting.tracking
-      ),
-
-      '🐾'
-    ]
-
-  ]
-  .filter(
-    item =>
-      item[1] != null
-  );
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          🏹 Jagd
-        </h2>
-      </div>
-
       ${
-        values.length
-
-          ? values
-            .map(
-              item =>
-                row(
-                  item[0],
-                  item[1],
-                  '',
-                  item[2]
-                )
+        Object.keys(dragon).length
+          ? row(
+              'Reichsdrache',
+              de(dragon.phase),
+              dragon.attack_count != null
+                ? `${fmt(
+                    dragon.attack_count
+                  )}. Angriff`
+                : '',
+              '🐉'
             )
-            .join('')
-
-          : `
-            <div class="empty">
-              Keine Jagdwerte verfügbar.
-            </div>
-          `
+          : ''
       }
-
     </div>
   `;
 }
 
-
-/* SCHMIED */
-
-function blacksmith(){
-
-  const data =
-    S.data.blacksmith
-    ||
-    {};
-
-
+function world() {
   return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          🔨 Schmied
-        </h2>
-      </div>
-
-
-      ${
-        [
-          [
-            'sword',
-            'Schwert',
-            '⚔️'
-          ],
-
-          [
-            'armor',
-            'Rüstung',
-            '🛡️'
-          ],
-
-          [
-            'shelter',
-            'Unterkunft',
-            '🏠'
-          ]
-        ]
-
-        .map(
-          (
-            [
-              key,
-              label,
-              icon
-            ]
-          ) => {
-
-            const item =
-              data[key];
-
-
-            if(
-              !item
-            ){
-              return '';
-            }
-
-
-            const end =
-              expiry(
-                item.timer
-              );
-
-
-            const meta =
-              item.in_progress
-
-                ? (
-                  end
-                    ? (
-                      `Fertig in ${
-                        t(
-                          (
-                            end
-                            -
-                            Date.now()
-                          )
-                          /
-                          1000
-                        )
-                      }`
-                    )
-
-                    : 'Ausbau läuft'
-                )
-
-                : (
-                  `Nächste Stufe: ${
-                    fmt(
-                      item
-                      .next_upgrade
-                      ?.cost_gold
-                    )
-                  } Gold`
-                );
-
-
-            return row(
-              label,
-              `Stufe ${
-                fmt(
-                  item.level
-                )
-              }`,
-              meta,
-              icon
-            );
-          }
-        )
-
-        .join('')
-      }
-
-    </div>
-  `;
-}
-
-
-/* FÄHIGKEITEN */
-
-function skills(){
-
-  const data =
-    S.data.skills
-    ||
-    {};
-
-
-  const block =
-    (
-      title,
-      items
-    ) => `
-
-      <div class="sectionTitle">
-        ${title}
-      </div>
-
-      <div class="chips">
-
-        ${
-          (
-            items
-            ||
-            []
-          ).length
-
-            ? (
-              items
-              ||
-              []
-            )
-
-            .map(
-              item => `
-                <span
-                  class="chip ${
-                    item.active
-                      ? 'active'
-                      : ''
-                  }"
-                >
-
-                  ${esc(
-                    skillName(
-                      item
-                    )
-                  )}
-
-                  ·
-
-                  ${fmt(
-                    item.level
-                  )}
-
-                </span>
-              `
-            )
-
-            .join('')
-
-            : `
-              <span class="empty">
-                Keine Daten
-              </span>
-            `
-        }
-
-      </div>
-    `;
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          ✨ Fähigkeiten
-        </h2>
-      </div>
-
-      ${
-        block(
-          'Kampf',
-          data.combat
-        )
-      }
-
-      ${
-        block(
-          'Düsterwald',
-          data.hunting
-        )
-      }
-
-    </div>
-  `;
-}
-
-
-/* TURNIERE */
-
-function tournaments(){
-
-  const data =
-    S.data.tournaments
-    ||
-    {};
-
-
-  const one =
-    (
-      title,
-      item
-    ) => {
-
-      if(
-        !item
-      ){
-
-        return row(
-          title,
-          'Keine Teilnahme',
-          '',
-          title.includes(
-            'Jagd'
-          )
-            ? '🏹'
-            : '⚔️'
-        );
-      }
-
-
-      return row(
-
-        title,
-
-        `Platz ${
-          fmt(
-            item.position
-          )
-        }`,
-
-        `${
-          de(
-            item.tournament
-              ?.type
-          )
-        } · Punkte ${
-          fmt(
-            item.score
-          )
-        }${
-          item.credits != null
-            ? (
-              ` · Kämpfe übrig ${
-                fmt(
-                  item.credits
-                )
-              }`
-            )
-            : ''
-        }`,
-
-        title.includes(
-          'Jagd'
-        )
-          ? '🏹'
-          : '⚔️'
-      );
-    };
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          🏆 Turniere
-        </h2>
-      </div>
-
-      ${
-        one(
-          'Jagdturnier',
-          data.hunting
-        )
-      }
-
-      ${
-        one(
-          'Kampfturnier',
-          data.combat
-        )
-      }
-
-    </div>
-  `;
-}
-
-
-/* RITTER-SEITE */
-
-function knight(){
-
-  const profile =
-    S.data.profile
-    ||
-    {};
-
-
-  const stats =
-    S.data.stats
-    ||
-    {};
-
-
-  const order =
-    S.data.order
-    ||
-    {};
-
-
-  return `
-
     <div class="pageHeader">
-
-      <h2>
-        Mein Ritter
-      </h2>
-
-      <small>
-        ${esc(
-          profile.name
-          ||
-          ''
-        )}
-      </small>
-
+      <h2>Welt</h2>
+      <small>Live-Daten</small>
     </div>
 
-
-    ${combatValues()}
-
-    ${hunting()}
-
-    ${blacksmith()}
-
-    ${skills()}
-
-    ${tournaments()}
-
-
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          📈 Statistik
-        </h2>
-      </div>
-
-
-      ${
-        row(
-          'PvP-Siege',
-
-          stats.pvp?.wins,
-
-          `Niederlagen ${
-            fmt(
-              stats.pvp
-                ?.losses
-            )
-          } · Siegquote ${
-            fmt(
-              stats.pvp
-                ?.winrate
-            )
-          } %`,
-
-          '⚔️'
-        )
-      }
-
-
-      ${
-        row(
-          'Jagdturniere',
-
-          stats.hunting_tournament
-            ?.participations,
-
-          `Siege ${
-            fmt(
-              stats
-              .hunting_tournament
-              ?.wins
-            )
-          } · Podest ${
-            fmt(
-              stats
-              .hunting_tournament
-              ?.podiums
-            )
-          }`,
-
-          '🏹'
-        )
-      }
-
-
-      ${
-        row(
-          'Kampfturniere',
-
-          stats.combat_tournament
-            ?.participations,
-
-          `Siege ${
-            fmt(
-              stats
-              .combat_tournament
-              ?.wins
-            )
-          } · Podest ${
-            fmt(
-              stats
-              .combat_tournament
-              ?.podiums
-            )
-          }`,
-
-          '🏆'
-        )
-      }
-
-
-      ${
-        row(
-          'Dungeon-Bosse',
-
-          stats.dungeon
-            ?.total_kills,
-
-          `Vollständig abgeschlossen: ${
-            fmt(
-              stats.dungeon
-                ?.fully_cleared
-            )
-          }`,
-
-          '🏰'
-        )
-      }
-
-    </div>
-
-
-    ${
-      order.order
-
-        ? `
-          <div class="panel">
-
-            <div class="panelHead">
-              <h2>
-                🛡️ Orden
-              </h2>
-            </div>
-
-
-            ${
-              row(
-                'Orden',
-
-                order.order.name,
-
-                `Rang ${
-                  fmt(
-                    order.order.rank
-                  )
-                } · ${
-                  fmt(
-                    order.order.members
-                  )
-                } Mitglieder`,
-
-                '🛡️'
-              )
-            }
-
-
-            ${
-              row(
-                'Ordenspunkte',
-
-                order.order.points,
-
-                '',
-
-                '🏆'
-              )
-            }
-
-
-            ${
-              row(
-                'Gespendetes Gold',
-
-                order.donations
-                  ?.gold,
-
-                '',
-
-                '🪙'
-              )
-            }
-
-          </div>
-        `
-
-        : ''
-    }
-
+    ${forestCard()}
+    ${renderEvents()}
   `;
 }
 
+/* -------------------------------------------------
+   MEHR
+------------------------------------------------- */
 
-/* RUCKSACK */
+function lifetimeCard() {
+  const d =
+    S.data.lifetime || {};
 
-function backpack(){
+  const c =
+    d.combat || {};
 
-  const data =
-    S.data.backpack
-    ||
-    {};
+  const h =
+    d.hunting || {};
 
+  const e =
+    d.economy || {};
 
-  const items =
-    data.items
-    ||
-    [];
-
-
-  const groups =
-    {};
-
-
-  for(
-    const item
-    of items
-  ){
-
-    const category =
-      CATEGORY_DE[
-        item.category
-      ]
-      ||
-      item.category
-      ||
-      'Sonstiges';
-
-
-    if(
-      !groups[
-        category
-      ]
-    ){
-
-      groups[
-        category
-      ] =
-        [];
-    }
-
-
-    groups[
-      category
-    ]
-    .push(
-      item
-    );
-  }
-
-
-  return `
-
-    <div class="pageHeader">
-
-      <h2>
-        Rucksack
-      </h2>
-
-      <small>
-
-        ${
-          fmt(
-            data.total_items
-            ??
-            items.length
-          )
-        }
-
-        Gegenstände
-
-      </small>
-
-    </div>
-
-
-    ${
-      Object.keys(
-        groups
-      ).length
-
-        ? Object.entries(
-            groups
-          )
-
-          .map(
-            (
-              [
-                category,
-                list
-              ]
-            ) => `
-
-              <div class="panel category">
-
-                <h3>
-
-                  ${esc(category)}
-
-                  <span class="tiny muted">
-                    ${list.length}
-                  </span>
-
-                </h3>
-
-
-                <div class="itemGrid">
-
-                  ${
-                    list
-
-                    .map(
-                      item => {
-
-                        const description =
-                          item.description_de
-                          ||
-                          item.description
-                          ||
-                          '';
-
-
-                        const meta =
-                          [
-                            item.level
-                              ? `Stufe ${
-                                  fmt(
-                                    item.level
-                                  )
-                                }`
-                              : '',
-
-                            item.is_equipped
-                              ? 'Ausgerüstet'
-                              : ''
-                          ]
-
-                          .filter(Boolean)
-
-                          .join(' · ');
-
-
-                        return `
-                          <details class="item">
-
-                            <summary>
-
-                              <span>
-
-                                ${fmt(
-                                  item.amount
-                                )}
-
-                                ×
-
-                                ${esc(
-                                  itemName(
-                                    item
-                                  )
-                                )}
-
-                              </span>
-
-                            </summary>
-
-
-                            <div class="itemDescription">
-
-                              ${
-                                description
-                                  ? esc(
-                                      description
-                                    )
-                                  : (
-                                    'Keine zusätzliche Beschreibung verfügbar.'
-                                  )
-                              }
-
-                              ${
-                                meta
-                                  ? `
-                                    <span class="itemMeta">
-                                      ${esc(meta)}
-                                    </span>
-                                  `
-                                  : ''
-                              }
-
-                            </div>
-
-                          </details>
-                        `;
-                      }
-                    )
-
-                    .join('')
-                  }
-
-                </div>
-
-              </div>
-            `
-          )
-
-          .join('')
-
-        : `
-          <div class="panel empty">
-            Rucksackdaten sind derzeit nicht verfügbar.
-          </div>
-        `
-    }
-
-  `;
-}
-
-
-/* DÜSTERWALD */
-
-function forest(){
-
-  const data =
-    S.data.forest
-    ||
-    {};
-
-
-  const captain =
-    data.orc_king
-    ||
-    {};
-
-
-  const dragon =
-    data.dragon
-    ||
-    {};
-
-
-  const plagues =
-    data.plagues
-    ||
-    {};
-
+  const p =
+    d.progression || {};
 
   return `
     <div class="panel">
-
       <div class="panelHead">
-        <h2>
-          🌲 Düsterwald live
-        </h2>
+        <h2>📚 Langzeitstatistik</h2>
       </div>
 
+      ${row(
+        'Kämpfe gewonnen',
+        c.battles_won,
+        `Verloren ${fmt(
+          c.battles_lost
+        )} · Ruhm verdient ${fmt(
+          c.honor_earned
+        )}`,
+        '⚔️'
+      )}
 
-      ${
-        row(
+      ${row(
+        'Orks besiegt',
+        h.orcs_killed,
+        `Wölfe ${fmt(
+          h.wolves_killed
+        )} · Pfeile ${fmt(
+          h.arrows_shot
+        )}`,
+        '🏹'
+      )}
 
-          'Ork-Hauptmann',
+      ${row(
+        'Gold verdient',
+        e.gold_earned,
+        `Leibeigene verdient ${fmt(
+          e.servants_earned
+        )}`,
+        '🪙'
+      )}
 
-          captain.alive
-            ? 'Lebt'
-            : 'Besiegt',
-
-          captain.alive
-
-            ? (
-              `${
-                fmt(
-                  captain.hp_percent
-                )
-              } % Leben · Belohnung ${
-                fmt(
-                  captain.reward
-                )
-              } · seit ${
-                fmt(
-                  captain.days_alive
-                )
-              } Tagen`
-            )
-
-            : '',
-
-          '👑'
-        )
-      }
-
-
-      ${
-        row(
-
-          'Reichsdrache',
-
-          de(
-            dragon.phase
-          ),
-
-          dragon.attack_count != null
-
-            ? (
-              `${
-                fmt(
-                  dragon.attack_count
-                )
-              }. Angriff`
-            )
-
-            : '',
-
-          '🐉'
-        )
-      }
-
-
-      ${
-        Object.entries(
-          plagues
-        )
-
-        .map(
-          (
-            [
-              key,
-              item
-            ]
-          ) => {
-
-            if(
-              !item?.active
-            ){
-              return '';
-            }
-
-
-            const color =
-              key === 'green'
-
-                ? 'Grüne'
-
-                : (
-                  key === 'yellow'
-                    ? 'Gelbe'
-                    : 'Rote'
-                );
-
-
-            return row(
-
-              `${color} Seuche`,
-
-              item.orc_name_de
-              ||
-              'Aktiv',
-
-              `${
-                fmt(
-                  item.remaining
-                )
-              } verbleibend`,
-
-              '☣️'
-            );
-          }
-        )
-
-        .join('')
-      }
-
+      ${row(
+        'Abenteuer abgeschlossen',
+        p.adventures_completed,
+        `Saisons ${fmt(
+          p.seasons_played
+        )} · gewonnen ${fmt(
+          p.seasons_won
+        )}`,
+        '📜'
+      )}
     </div>
   `;
 }
 
-
-/* PROVINZ */
-
-function province(){
-
-  const data =
-    S.data.province
-    ||
-    {};
-
-
-  if(
-    data.number == null
-  ){
-    return '';
-  }
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          🏳️ Provinzkampf
-        </h2>
-      </div>
-
-
-      ${
-        row(
-
-          'Provinz',
-
-          data.name_de
-          ||
-          data.name_en,
-
-          `Nr. ${
-            fmt(
-              data.number
-            )
-          } · ${
-            de(
-              data.status
-            )
-          }`,
-
-          '🏳️'
-        )
-      }
-
-
-      ${
-        row(
-
-          'Bonus',
-
-          data.reward_de
-          ||
-          data.reward_en,
-
-          '',
-
-          '🎁'
-        )
-      }
-
-
-      ${
-        (
-          data.orders
-          ||
-          []
-        )
-
-        .slice(
-          0,
-          3
-        )
-
-        .map(
-          order =>
-            row(
-
-              `Platz ${
-                order.rank
-              }`,
-
-              order.name_de
-              ||
-              order.name_en,
-
-              `${
-                fmt(
-                  order.points
-                )
-              } Punkte · ${
-                fmt(
-                  order.tokens
-                )
-              } Marken`,
-
-              '🛡️'
-            )
-        )
-
-        .join('')
-      }
-
-    </div>
-  `;
-}
-
-
-/* STRATEGIEKAMMER */
-
-function party(){
-
-  const party =
-    S.data.party
-      ?.party;
-
-
-  if(
-    !party
-  ){
-
-    return `
-      <div class="panel">
-
-        <div class="panelHead">
-          <h2>
-            👥 Strategiekammer
-          </h2>
-        </div>
-
-        <div class="empty">
-          Du bist derzeit keiner Strategiekammer-Gruppe beigetreten.
-        </div>
-
-      </div>
-    `;
-  }
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-
-        <h2>
-          👥 Strategiekammer
-        </h2>
-
-        <span class="pill">
-          ${de(party.status)}
-        </span>
-
-      </div>
-
-
-      ${
-        row(
-          'Dungeon',
-          party.dungeon,
-          '',
-          '🏰'
-        )
-      }
-
-
-      <div class="sectionTitle">
-        Mitglieder
-      </div>
-
-
-      ${
-        (
-          party.members
-          ||
-          []
-        )
-
-        .map(
-          member =>
-            row(
-
-              member.name,
-
-              member.is_you
-                ? 'Du'
-                : (
-                  member.is_leader
-                    ? 'Leitung'
-                    : 'Mitglied'
-                ),
-
-              '',
-
-              member.is_leader
-                ? '👑'
-                : '⚔️'
-            )
-        )
-
-        .join('')
-      }
-
-    </div>
-  `;
-}
-
-
-/* DUNGEONS */
-
-function dungeons(){
-
-  const data =
-    S.data.dungeons
-    ||
-    {};
-
-
-  const list =
-    data.dungeons
-    ||
-    [];
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-
-        <h2>
-          🏰 Dungeons
-        </h2>
-
-        <span class="badge">
-          ${
-            fmt(
-              data.total_kills
-              ||
-              0
-            )
-          }
-        </span>
-
-      </div>
-
-
-      ${
-        list.length
-
-          ? list
-
-            .map(
-              dungeon => `
-
-                <div class="eventCard">
-
-                  <div class="eventTop">
-
-                    <span>
-
-                      ${esc(
-                        dungeon.name_de
-                        ||
-                        dungeon.name
-                        ||
-                        'Dungeon'
-                      )}
-
-                    </span>
-
-                    <span>
-
-                      ${
-                        Object.values(
-                          dungeon.difficulties
-                          ||
-                          {}
-                        )
-                        .filter(
-                          value =>
-                            value.completed
-                        )
-                        .length
-                      }
-
-                      /
-
-                      ${
-                        Object.keys(
-                          dungeon.difficulties
-                          ||
-                          {}
-                        )
-                        .length
-                      }
-
-                    </span>
-
-                  </div>
-
-
-                  ${
-                    Object.entries(
-                      dungeon.difficulties
-                      ||
-                      {}
-                    )
-
-                    .map(
-                      (
-                        [
-                          key,
-                          value
-                        ]
-                      ) => `
-
-                        <div class="rowMeta">
-
-                          ${de(key)}:
-
-                          ${
-                            fmt(
-                              value.kills
-                            )
-                          }
-
-                          /
-
-                          ${
-                            fmt(
-                              value.max_kills
-                            )
-                          }
-
-                          ${
-                            value.completed
-                              ? '✓'
-                              : ''
-                          }
-
-                        </div>
-                      `
-                    )
-
-                    .join('')
-                  }
-
-                </div>
-              `
-            )
-
-            .join('')
-
-          : `
-            <div class="empty">
-              Keine Dungeon-Daten.
-            </div>
-          `
-      }
-
-    </div>
-  `;
-}
-
-
-/* EIGENER DRACHE */
-
-function dragonCard(){
-
-  const data =
-    S.data.dragon
-    ||
-    {};
-
-
-  if(
-    data.has_dragon === false
-  ){
-    return '';
-  }
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          🐉 Eigener Drache
-        </h2>
-      </div>
-
-
-      ${
-        row(
-          'Status',
-          de(data.status),
-          '',
-          '🐉'
-        )
-      }
-
-
-      ${
-        row(
-          'Level',
-
-          data.level,
-
-          `XP ${
-            fmt(
-              data.xp
-            )
-          } / ${
-            fmt(
-              data.xp_needed
-            )
-          }`,
-
-          '⭐'
-        )
-      }
-
-
-      ${
-        row(
-          'Futter',
-          data.food,
-          '',
-          '🍖'
-        )
-      }
-
-
-      ${
-        progress(
-          data.xp_percent
-        )
-      }
-
-    </div>
-  `;
-}
-
-
-/* AUSSENPOSTEN */
-
-function outpostCard(){
-
-  const data =
-    S.data.outpost
-    ||
-    {};
-
-
-  const task =
-    data.current_task;
-
-
-  const description =
-    task
-
-      ? (
-        task.description_de
-        ||
-        OUTPOST_DE[
-          task.ident
-        ]
-        ||
-        'Aktuelle Aufgabe im Außenposten'
-      )
-
-      : 'Keine aktive Aufgabe.';
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          🏕️ Außenposten
-        </h2>
-      </div>
-
-
-      ${
-        task
-
-          ? `
-            ${
-              row(
-                'Aktuelle Aufgabe',
-
-                description,
-
-                `${
-                  fmt(
-                    task.progress
-                  )
-                } / ${
-                  fmt(
-                    task.target
-                  )
-                }`,
-
-                '📜'
-              )
-            }
-
-            ${
-              progress(
-                Number(
-                  task.target
-                )
-
-                  ? (
-                    Number(
-                      task.progress
-                    )
-                    /
-                    Number(
-                      task.target
-                    )
-                    *
-                    100
-                  )
-
-                  : 0
-              )
-            }
-          `
-
-          : `
-            <div class="empty">
-              Keine aktive Aufgabe.
-            </div>
-          `
-      }
-
-
-      <div
-        class="grid3"
-        style="margin-top:7px"
-      >
-
-        <div class="tile">
-
-          <b>
-            ${fmt(data.tasks_completed)}
-          </b>
-
-          <span>
-            Erledigt
-          </span>
-
-        </div>
-
-
-        <div class="tile">
-
-          <b>
-            ${fmt(data.tasks_skipped)}
-          </b>
-
-          <span>
-            Übersprungen
-          </span>
-
-        </div>
-
-
-        <div class="tile">
-
-          <b>
-            ${fmt(data.pending_rewards)}
-          </b>
-
-          <span>
-            Belohnungen
-          </span>
-
-        </div>
-
-      </div>
-
-    </div>
-  `;
-}
-
-
-function world(){
-
-  return `
-
-    <div class="pageHeader">
-
-      <h2>
-        Welt & Aktivitäten
-      </h2>
-
-      <small>
-        Live-Daten
-      </small>
-
-    </div>
-
-
-    ${forest()}
-
-    ${province()}
-
-    ${party()}
-
-    ${dungeons()}
-
-    ${dragonCard()}
-
-    ${outpostCard()}
-
-  `;
-}
-
-
-/* LANGZEIT */
-
-function lifetime(){
-
-  const data =
-    S.data.lifetime
-    ||
-    {};
-
-
-  const combat =
-    data.combat
-    ||
-    {};
-
-
-  const hunting =
-    data.hunting
-    ||
-    {};
-
-
-  const economy =
-    data.economy
-    ||
-    {};
-
-
-  const progression =
-    data.progression
-    ||
-    {};
-
-
-  return `
-    <div class="panel">
-
-      <div class="panelHead">
-        <h2>
-          📚 Langzeitstatistik
-        </h2>
-      </div>
-
-
-      ${
-        row(
-
-          'Kämpfe gewonnen',
-
-          combat.battles_won,
-
-          `Verloren ${
-            fmt(
-              combat.battles_lost
-            )
-          } · Ruhm verdient ${
-            fmt(
-              combat.honor_earned
-            )
-          }`,
-
-          '⚔️'
-        )
-      }
-
-
-      ${
-        row(
-
-          'Orks besiegt',
-
-          hunting.orcs_killed,
-
-          `Wölfe ${
-            fmt(
-              hunting.wolves_killed
-            )
-          } · Pfeile ${
-            fmt(
-              hunting.arrows_shot
-            )
-          }`,
-
-          '🏹'
-        )
-      }
-
-
-      ${
-        row(
-
-          'Gold verdient',
-
-          economy.gold_earned,
-
-          `Leibeigene verdient ${
-            fmt(
-              economy.servants_earned
-            )
-          }`,
-
-          '🪙'
-        )
-      }
-
-
-      ${
-        row(
-
-          'Abenteuer abgeschlossen',
-
-          progression.adventures_completed,
-
-          `Saisons ${
-            fmt(
-              progression.seasons_played
-            )
-          } · gewonnen ${
-            fmt(
-              progression.seasons_won
-            )
-          }`,
-
-          '📜'
-        )
-      }
-
-    </div>
-  `;
-}
-
-
-/* HAUSTIER */
-
-function petCard(){
-
-  const data =
-    S.data.bestiary
-    ||
-    {};
-
+function petCard() {
+  const d =
+    S.data.bestiary || {};
 
   const pets =
-    data.pets
-    ||
-    [];
-
+    Array.isArray(d.pets)
+      ? d.pets
+      : [];
 
   return `
     <div class="panel">
-
       <div class="panelHead">
-
-        <h2>
-          🐾 Haustier
-        </h2>
+        <h2>🐾 Haustier</h2>
 
         <span class="badge">
-
-          ${
-            fmt(
-              data.pet_count
-              ??
-              pets.length
-            )
-          }
-
+          ${fmt(
+            d.pet_count ??
+            pets.length
+          )}
         </span>
-
       </div>
-
 
       ${
         pets.length
-
-          ? pets
-
-            .map(
-              pet =>
-                row(
-
-                  pet.name
-                  ||
-                  pet.type?.name_de
-                  ||
-                  'Haustier',
-
-                  `Bindung ${
-                    fmt(
-                      pet.bond_level
-                    )
-                  }`,
-
-                  `${
-                    pet.type?.name_de
-                    ||
-                    ''
-                  } · Leben ${
-                    fmt(
-                      pet.health
-                    )
-                  } · Hunger ${
-                    fmt(
-                      pet.hunger
-                    )
-                  } · Stimmung ${
-                    fmt(
-                      pet.mood
-                    )
-                  }`,
-
-                  '🐾'
-                )
-            )
-
-            .join('')
-
+          ? pets.map(pet =>
+              row(
+                pet.name ||
+                pet.type?.name_de ||
+                'Haustier',
+                `Bindung ${fmt(
+                  pet.bond_level
+                )}`,
+                pet.type?.name_de || '',
+                '🐾'
+              )
+            ).join('')
           : `
             <div class="empty">
               Kein Haustier vorhanden.
             </div>
           `
       }
-
     </div>
   `;
 }
 
-
-function more(){
-
+function more() {
   return `
-
     <div class="pageHeader">
-
-      <h2>
-        Mehr
-      </h2>
-
+      <h2>Mehr</h2>
       <small>
         Statistik & Sammlung
       </small>
-
     </div>
 
-
-    ${lifetime()}
-
+    ${lifetimeCard()}
     ${petCard()}
-
   `;
 }
 
+/* -------------------------------------------------
+   RENDERING
+------------------------------------------------- */
 
-/* RENDER */
+function render() {
+  $('#overviewPage').innerHTML =
+    overview();
 
-function render(){
+  $('#knightPage').innerHTML =
+    knight();
 
-  $('#overviewPage')
-    .innerHTML =
-      overview();
+  $('#backpackPage').innerHTML =
+    backpack();
 
+  $('#worldPage').innerHTML =
+    world();
 
-  $('#knightPage')
-    .innerHTML =
-      knight();
-
-
-  $('#backpackPage')
-    .innerHTML =
-      backpack();
-
-
-  $('#worldPage')
-    .innerHTML =
-      world();
-
-
-  $('#morePage')
-    .innerHTML =
-      more();
-
+  $('#morePage').innerHTML =
+    more();
 
   const season =
-    S.data.season
-    ||
-    {};
+    S.data.season || {};
 
-
-  $('#season')
-    .textContent =
-
-      season.season != null
-
-        ? (
-          `Saison ${
-            season.season
-          } · Tag ${
-            season.day
-          }${
-            season.paused
-              ? ' · pausiert'
-              : ''
-          }`
-        )
-
-        : 'Persönliche Übersicht';
-
+  $('#season').textContent =
+    season.season != null
+      ? `Saison ${season.season} · Tag ${season.day}${
+          season.paused
+            ? ' · pausiert'
+            : ''
+        }`
+      : 'Persönliche Übersicht';
 
   updateCountdowns();
 }
 
+function updateCountdowns() {
+  $$('[data-expires]').forEach(el => {
+    const end =
+      Number(el.dataset.expires);
 
-/* COUNTDOWNS */
-
-function updateCountdowns(){
-
-  $$(
-    '[data-expires]'
-  )
-
-  .forEach(
-    element => {
-
-      const end =
-        Number(
-          element
-            .dataset
-            .expires
+    if (Number.isFinite(end)) {
+      el.textContent =
+        timeLeft(
+          (end - Date.now()) /
+          1000
         );
-
-
-      if(
-        Number.isFinite(
-          end
-        )
-      ){
-
-        element.textContent =
-          t(
-            (
-              end
-              -
-              Date.now()
-            )
-            /
-            1000
-          );
-      }
     }
-  );
+  });
 }
 
+/* -------------------------------------------------
+   DATEN LADEN
+------------------------------------------------- */
 
-/* LADEN */
+async function loadAll(force = false) {
+  if (S.busy) return;
 
-async function loadAll(
-  force = false
-){
-
-  if(
-    S.busy
-  ){
+  if (
+    force &&
+    Date.now() - lastManual < MANUAL
+  ) {
     return;
   }
 
-
-  if(
-    force
-    &&
-    Date.now()
-    -
-    lastManual
-    <
-    MANUAL
-  ){
-    return;
+  if (force) {
+    lastManual = Date.now();
   }
 
+  S.busy = true;
 
-  if(force){
+  $('#refreshBtn').textContent =
+    '…';
 
-    lastManual =
-      Date.now();
-  }
+  const errors = [];
 
-
-  S.busy =
-    true;
-
-
-  $('#refreshBtn')
-    .textContent =
-      '…';
-
-
-  const errors =
-    [];
-
-
-  for(
-    const [
-      key,
-      path
-    ]
-    of ENDPOINTS
-  ){
-
-    try{
-
+  for (const [key, path] of ENDPOINTS) {
+    try {
       S.data[key] =
-        await api(
-          path
-        );
-
-    }catch(error){
-
+        await api(path);
+    } catch (error) {
       errors.push(
-        `${path}: ${
-          error.message
-        }`
+        `${path}: ${error.message}`
       );
 
-
-      if(
-        error.rate
-      ){
+      if (error.rate) {
         break;
       }
     }
 
-
-    await sleep(
-      WAIT
-    );
+    await sleep(WAIT);
   }
 
+  /*
+   * SHOP IST BESONDERS WICHTIG:
+   * Wenn beim ersten Abruf keine Angebote
+   * angekommen sind, wird der Shop nach
+   * kurzer Pause ein zweites Mal frisch
+   * abgerufen.
+   */
+  if (
+    !extractShopOffers(
+      S.data.shop
+    ).length
+  ) {
+    await sleep(700);
+    await refreshShopOnly();
+  }
 
-  S.busy =
-    false;
+  S.busy = false;
 
-
-  $('#refreshBtn')
-    .textContent =
-      '↻';
-
+  $('#refreshBtn').textContent =
+    '↻';
 
   render();
 
-
-  if(
-    errors.length
-  ){
-
-    $('#errorBox')
-      .textContent =
-        errors.join(
-          '\n'
-        );
-
+  if (errors.length) {
+    $('#errorBox').textContent =
+      errors.join('\n');
 
     $('#errorBox')
       .classList
-      .remove(
-        'hidden'
-      );
-
-  }else{
-
+      .remove('hidden');
+  } else {
     $('#errorBox')
       .classList
-      .add(
-        'hidden'
-      );
+      .add('hidden');
   }
-
 
   localStorage.setItem(
     'rm_last_sync',
@@ -4963,519 +1920,307 @@ async function loadAll(
   );
 }
 
+/* -------------------------------------------------
+   SEITEN / WISCHEN
+------------------------------------------------- */
 
-/* SEITENWECHSEL */
-
-function gotoPage(page){
-
+function gotoPage(page) {
   S.page =
     Math.max(
       0,
-      Math.min(
-        4,
-        page
+      Math.min(4, page)
+    );
+
+  $$('.page').forEach(
+    (el, index) =>
+      el.classList.toggle(
+        'active',
+        index === S.page
       )
-    );
+  );
 
-
-  $$('.page')
-    .forEach(
-      (
-        element,
-        index
-      ) =>
-
-        element
-        .classList
-        .toggle(
-          'active',
-          index ===
-          S.page
-        )
-    );
-
-
-  $$('.tab')
-    .forEach(
-      (
-        element,
-        index
-      ) =>
-
-        element
-        .classList
-        .toggle(
-          'active',
-          index ===
-          S.page
-        )
-    );
-
-
-  $('#pageDots')
-    .innerHTML =
-
-      Array.from(
-        {
-          length:5
-        },
-        (
-          _,
-          index
-        ) =>
-
-          `<i class="${
-            index === S.page
-              ? 'active'
-              : ''
-          }"></i>`
+  $$('.tab').forEach(
+    (el, index) =>
+      el.classList.toggle(
+        'active',
+        index === S.page
       )
+  );
 
-      .join('');
-
+  $('#pageDots').innerHTML =
+    Array.from(
+      { length: 5 },
+      (_, index) =>
+        `<i class="${
+          index === S.page
+            ? 'active'
+            : ''
+        }"></i>`
+    ).join('');
 
   window.scrollTo({
-    top:0,
-    behavior:'smooth'
+    top: 0,
+    behavior: 'smooth'
   });
 }
 
+function setupSwipe() {
+  let startX = 0;
+  let startY = 0;
 
-/* WISCHEN */
+  $('#pager').addEventListener(
+    'touchstart',
+    event => {
+      startX =
+        event.changedTouches[0].clientX;
 
-function setupSwipe(){
-
-  let startX =
-    0;
-
-
-  let startY =
-    0;
-
-
-  $('#pager')
-    .addEventListener(
-      'touchstart',
-
-      event => {
-
-        startX =
-          event
-          .changedTouches[0]
-          .clientX;
-
-
-        startY =
-          event
-          .changedTouches[0]
-          .clientY;
-      },
-
-      {
-        passive:true
-      }
-    );
-
-
-  $('#pager')
-    .addEventListener(
-      'touchend',
-
-      event => {
-
-        const dx =
-          event
-          .changedTouches[0]
-          .clientX
-          -
-          startX;
-
-
-        const dy =
-          event
-          .changedTouches[0]
-          .clientY
-          -
-          startY;
-
-
-        if(
-          Math.abs(dx) >
-          65
-
-          &&
-
-          Math.abs(dx) >
-          Math.abs(dy)
-          *
-          1.35
-        ){
-
-          gotoPage(
-            S.page
-            +
-            (
-              dx < 0
-                ? 1
-                : -1
-            )
-          );
-        }
-      },
-
-      {
-        passive:true
-      }
-    );
-}
-
-
-/* EINSTELLUNGEN */
-
-function openSettings(){
-
-  $('#proxyInput')
-    .value =
-      proxy();
-
-
-  $('#tokenInput')
-    .value =
-      token();
-
-
-  $('#autoInput')
-    .checked =
-      auto();
-
-
-  $('#drawer')
-    .classList
-    .add(
-      'open'
-    );
-}
-
-
-function closeSettings(){
-
-  $('#drawer')
-    .classList
-    .remove(
-      'open'
-    );
-}
-
-
-function setupAuto(){
-
-  clearInterval(
-    S.autoTimer
+      startY =
+        event.changedTouches[0].clientY;
+    },
+    { passive: true }
   );
 
+  $('#pager').addEventListener(
+    'touchend',
+    event => {
+      const dx =
+        event.changedTouches[0].clientX -
+        startX;
 
-  if(
-    auto()
-    &&
-    token()
-    &&
+      const dy =
+        event.changedTouches[0].clientY -
+        startY;
+
+      if (
+        Math.abs(dx) > 65 &&
+        Math.abs(dx) >
+          Math.abs(dy) * 1.35
+      ) {
+        gotoPage(
+          S.page +
+          (dx < 0 ? 1 : -1)
+        );
+      }
+    },
+    { passive: true }
+  );
+}
+
+/* -------------------------------------------------
+   EINSTELLUNGEN
+------------------------------------------------- */
+
+function openSettings() {
+  $('#proxyInput').value =
+    proxy();
+
+  $('#tokenInput').value =
+    token();
+
+  $('#autoInput').checked =
+    auto();
+
+  $('#drawer')
+    .classList
+    .add('open');
+}
+
+function closeSettings() {
+  $('#drawer')
+    .classList
+    .remove('open');
+}
+
+function setupAuto() {
+  clearInterval(S.autoTimer);
+
+  if (
+    auto() &&
+    token() &&
     proxy()
-  ){
-
+  ) {
     S.autoTimer =
-      setInterval(
-        () => {
-
-          if(
-            document.visibilityState
-            ===
-            'visible'
-          ){
-
-            loadAll(
-              false
-            );
-          }
-        },
-
-        AUTO
-      );
+      setInterval(() => {
+        if (
+          document.visibilityState ===
+          'visible'
+        ) {
+          loadAll(false);
+        }
+      }, AUTO);
   }
 }
 
-
-function save(){
-
+function save() {
   const proxyValue =
     $('#proxyInput')
-    .value
-    .trim()
-    .replace(
-      /\/+$/,
-      ''
-    );
-
+      .value
+      .trim()
+      .replace(/\/+$/, '');
 
   const tokenValue =
     $('#tokenInput')
-    .value
-    .trim();
+      .value
+      .trim();
 
-
-  if(
-    proxyValue
-  ){
-
+  if (proxyValue) {
     localStorage.setItem(
       'rm_proxy',
       proxyValue
     );
-
-  }else{
-
+  } else {
     localStorage.removeItem(
       'rm_proxy'
     );
   }
 
-
-  if(
-    tokenValue
-  ){
-
+  if (tokenValue) {
     localStorage.setItem(
       'rm_token',
       tokenValue
     );
-
-  }else{
-
+  } else {
     localStorage.removeItem(
       'rm_token'
     );
   }
 
-
   localStorage.setItem(
     'rm_auto',
-
-    $('#autoInput')
-      .checked
+    $('#autoInput').checked
       ? '1'
       : '0'
   );
 
-
   closeSettings();
-
   setupAuto();
-
-  loadAll(
-    true
-  );
+  loadAll(true);
 }
 
+/* -------------------------------------------------
+   PWA INSTALLATION
+------------------------------------------------- */
 
-/* INSTALL */
-
-function setupInstall(){
-
-  if(
+function setupInstall() {
+  if (
     matchMedia(
       '(display-mode: standalone)'
-    )
-    .matches
-
-    ||
-
-    navigator.standalone ===
-    true
-  ){
-
+    ).matches ||
+    navigator.standalone === true
+  ) {
     document.body
       .classList
-      .add(
-        'standalone'
-      );
+      .add('standalone');
   }
-
 
   addEventListener(
     'beforeinstallprompt',
-
     event => {
-
       event.preventDefault();
 
       S.installPrompt =
         event;
 
-
       $('#installBtn')
         .classList
-        .remove(
-          'hidden'
-        );
+        .remove('hidden');
     }
   );
 
+  $('#installBtn').onclick =
+    async () => {
+      if (!S.installPrompt) {
+        return;
+      }
 
-  $('#installBtn')
-    .onclick =
-      async () => {
+      S.installPrompt.prompt();
 
-        if(
-          !S.installPrompt
-        ){
-          return;
-        }
+      await S.installPrompt.userChoice;
 
+      S.installPrompt = null;
 
-        S.installPrompt
-          .prompt();
-
-
-        await S
-          .installPrompt
-          .userChoice;
-
-
-        S.installPrompt =
-          null;
-
-
-        $('#installBtn')
-          .classList
-          .add(
-            'hidden'
-          );
-      };
+      $('#installBtn')
+        .classList
+        .add('hidden');
+    };
 }
 
+/* -------------------------------------------------
+   START
+------------------------------------------------- */
 
-/* START */
+addEventListener('load', () => {
+  $$('.tab').forEach(button => {
+    button.onclick =
+      () =>
+        gotoPage(
+          Number(
+            button.dataset.tab
+          )
+        );
+  });
 
-addEventListener(
-  'load',
-  () => {
+  gotoPage(0);
 
-    $$('.tab')
-      .forEach(
-        button => {
+  setupSwipe();
+  setupInstall();
 
-          button.onclick =
-            () =>
-              gotoPage(
-                Number(
-                  button.dataset.tab
-                )
-              );
-        }
+  $('#settingsBtn').onclick =
+    openSettings;
+
+  $('#closeBtn').onclick =
+    closeSettings;
+
+  $('#saveBtn').onclick =
+    save;
+
+  $('#forgetBtn').onclick =
+    () => {
+      localStorage.removeItem(
+        'rm_token'
       );
 
+      $('#tokenInput').value =
+        '';
+    };
 
-    gotoPage(
-      0
+  $('#refreshBtn').onclick =
+    () => loadAll(true);
+
+  $('#drawer').onclick =
+    event => {
+      if (
+        event.target.id ===
+        'drawer'
+      ) {
+        closeSettings();
+      }
+    };
+
+  S.countTimer =
+    setInterval(
+      updateCountdowns,
+      1000
     );
 
+  setupAuto();
 
-    setupSwipe();
-
-    setupInstall();
-
-
-    $('#settingsBtn')
-      .onclick =
-        openSettings;
-
-
-    $('#closeBtn')
-      .onclick =
-        closeSettings;
-
-
-    $('#saveBtn')
-      .onclick =
-        save;
-
-
-    $('#forgetBtn')
-      .onclick =
-        () => {
-
-          localStorage
-            .removeItem(
-              'rm_token'
-            );
-
-
-          $('#tokenInput')
-            .value =
-              '';
-        };
-
-
-    $('#refreshBtn')
-      .onclick =
-        () =>
-          loadAll(
-            true
-          );
-
-
-    $('#drawer')
-      .onclick =
-        event => {
-
-          if(
-            event.target.id ===
-            'drawer'
-          ){
-
-            closeSettings();
-          }
-        };
-
-
-    S.countTimer =
-      setInterval(
-        updateCountdowns,
-        1000
-      );
-
-
-    setupAuto();
-
-
-    if(
-      'serviceWorker'
-      in navigator
-    ){
-
-      navigator
-        .serviceWorker
-        .register(
-          './service-worker.js?v=7'
-        )
-        .catch(
-          () => {}
-        );
-    }
-
-
-    if(
-      token()
-      &&
-      proxy()
-    ){
-
-      loadAll(
-        false
-      );
-
-    }else{
-
-      openSettings();
-    }
+  if (
+    'serviceWorker' in navigator
+  ) {
+    navigator.serviceWorker
+      .register(
+        './service-worker.js?v=8'
+      )
+      .catch(() => {});
   }
-);
+
+  if (
+    token() &&
+    proxy()
+  ) {
+    loadAll(false);
+  } else {
+    openSettings();
+  }
+});
